@@ -103,4 +103,4 @@ fig.plot(x=x_reg,y=y_reg,
 
 fig.show()
 outpath = os.path.join(rep_out,"cm_dep.png")
-fig.savefig(outpath,dpi=300)
+# fig.savefig(outpath,dpi=300)

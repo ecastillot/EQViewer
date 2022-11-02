@@ -33,8 +33,7 @@ def map(region,
         rivers="['2/blue','2/blue']",
         borders='1/1p,black',
         legend=True,
-        fig = None,
-        save=True):
+        fig = None):
 
     if fig == None:
         fig = pygmt.Figure()   
@@ -128,7 +127,7 @@ def map(region,
                 fig.plot(
                         x=data["longitude"],
                         y=data["latitude"],
-                        sizes=_size,
+                        size=_size,
                         color=color,
                         cmap=True,
                         style=style,
@@ -142,7 +141,7 @@ def map(region,
                 fig.plot(
                     x=data["longitude"],
                     y=data["latitude"],
-                    sizes=_size,
+                    size=_size,
                     label=label,
                     color=color,
                     style=style,
@@ -441,7 +440,6 @@ def map(region,
         fig.basemap(map_scale=f"g{xs}/{ys}+c{xs}/{ys}+w{d}k+o0.5c/0.5c+f+lkm+at")
     
 
-    # fig.show()
     return fig,new_catalogs
 
 
@@ -458,12 +456,9 @@ def profile_plots(region,catalogs,profiles,
                 reverse_xy=False,
                 margins=["1c","1c"],
                 fig=None,
-                legend=True,
-                save=True):
+                legend=True):
     if fig == None:
         fig = pygmt.Figure()
-    # else:
-    #     figsize = None
 
     n = len(profiles)
     n_square = np.sqrt(n)
@@ -1026,7 +1021,6 @@ def profile_plots(region,catalogs,profiles,
                 if legend:
                     if labeled == True:
                         fig.legend( position='jTL')
-    # fig.show()
     fig.shift_origin(yshift="h-1c")
     return fig
 
