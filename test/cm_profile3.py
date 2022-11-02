@@ -134,6 +134,8 @@ fig,new_catalog = seismic_profile.map(reg,catalogs=catalogs,
                 rivers=None,
                 legend=False
                 )
+# fig.show()
+# exit()
 
 proj = 'G-70/0/1i'
 fig.shift_origin(xshift="0i",yshift="0i")
@@ -162,7 +164,8 @@ fig.plot(x=x_reg,y=y_reg,
 
 fig.show()
 outpath = os.path.join(rep_out,"col_map_lon.pdf")
-fig.savefig(outpath,dpi=300)
+# fig.savefig(outpath,dpi=300)
+# exit()
 
 prof_fig = seismic_profile.profile_plots(region=reg,
                 catalogs=catalogs,
@@ -172,5 +175,5 @@ prof_fig = seismic_profile.profile_plots(region=reg,
                 depth_unit="km",
                 save=True)
 prof_fig.show()
-outpath = os.path.join(rep_out,"col_prof_lon.pdf")
-prof_fig.savefig(outpath,dpi=300)
+# outpath = os.path.join(rep_out,"col_prof_lon.pdf")
+# prof_fig.savefig(outpath,dpi=300)

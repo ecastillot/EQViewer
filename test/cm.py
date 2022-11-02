@@ -68,6 +68,8 @@ fig,new_catalog = seismic_profile.map(reg,catalogs=catalogs,
                 legend=False
                 )
 
+# fig.show()
+# exit()
 proj = 'G-70/0/1i'
 fig.shift_origin(xshift="0i",yshift="0i")
 fig.grdimage(
@@ -92,5 +94,5 @@ fig.plot(x=x_reg,y=y_reg,
         pen="2p,red")
 
 fig.show()
-outpath = os.path.join(rep_out,"mymap1.png")
-fig.savefig(outpath,dpi=300)
+# outpath = os.path.join(rep_out,"mymap1.png")
+# fig.savefig(outpath,dpi=300)
