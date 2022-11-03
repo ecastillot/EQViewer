@@ -1,9 +1,7 @@
-import shutil
 import numpy as np
 import pandas as pd
 import os
 import glob
-import json 
 import geopandas as gpd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -305,7 +303,6 @@ def get_gdf(gdf,attrs=None,
     
     data = gpd.GeoDataFrame( pd.concat( data, ignore_index=True) )
     return data
-
 
 def get_cross_profiles(coords,n_cross,theta=90,
         number_of_profile=0,

@@ -112,6 +112,7 @@ def map(region,
 
 
             if cmap:
+                cmap_args = cmap_args.to_dict()
                 color = data[cmap_args["color_target"]]
                 cmap_label = cmap_args["label"]
                 _cmap_args = cmap_args.copy() 
@@ -168,16 +169,41 @@ def map(region,
                         font=f"10p,Helvetica,black",
                         fill=None,offset="-0.05c/0.15c")
                         
-    if isinstance(wells,dict):
-        mech_state = wells["mech_sta_path"]
-        color_mech_sta = wells["color_mech_sta"]
-        cmap_wells = wells["cmap"]
-        injection_cmap = wells["injection_cmap"]
-        # injection = wells["mech_sta_path"]
-        xl = pd.read_excel(mech_state, sheet_name = None)
-        for well, well_df in xl.items():
+    if wells:
+        
+        injection_cmap = wells.injection_cmap
+        if injection_cmap != None:
+            injection_cmap = injection_cmap.to_dict()
+            if isinstance(injection_cmap,dict):
+                inj_cmap_label = injection_cmap["label"]
+                _injection_cmap = injection_cmap.copy() 
+
+                if not injection_cmap["series"]:
+                    injections = [ x.injection for x in wells.wells]
+                    injections = pd.concat(injections)
+                    if not injections.empty:
+                        min_inj = injections[wells.injection_cmap.color_target].min()
+                        max_inj = injections[wells.injection_cmap.color_target].max()
+                        step = (max_inj-min_inj)/10
+                        min_val = min_inj
+                        max_val = max_inj
+                        step = step
+                        _injection_cmap["series"] = [min_val,max_val,step]
+        else:
+            _injection_cmap = None
+
             
+        for _well in wells.wells:
+            w = _well.to_dict()
+            well = w["name"]
+            well_df = w["data"]
+            color_mech_sta = w["color"]
+            cmap_wells = w["cmap"]
+            injection = w["injection"]
+            injection_cmap = w["injection_cmap"]
+
             if cmap_wells:
+                cmap_args = cmap_args.to_dict()
                 _cmap_args = cmap_args.copy() 
                 cmap_label = _cmap_args["label"]
                 _cmap_args.pop('color_target', None)
@@ -185,10 +211,10 @@ def map(region,
                 pygmt.makecpt(**_cmap_args)
 
                 fig.plot(
-                        x=well_df["Lon (°)"],
-                        y=well_df["Lat (°)"],
+                        x=well_df["lon"],
+                        y=well_df["lat"],
                         cmap=True,
-                        color=well_df["Z (m)"],
+                        color=well_df["z"],
                         size=None,
                         style="s0.05",
                         pen=f"+0.0001p+i"
@@ -214,25 +240,25 @@ def map(region,
 
 
                 fig.plot(
-                        x=well_df["Lon (°)"],
-                        y=well_df["Lat (°)"],
+                        x=well_df["lon"],
+                        y=well_df["lat"],
                         label=label,
                         pen=f"{color}"
                         )
-            data = well_df[["Lon (°)","Lat (°)","Z (m)", "MD (ft)","TVD (ft)"]]
+            data = well_df[["lon","lat","z", "MD","TVD"]]
             
-            data = data[(data["Lon (°)"] >= region[0]) &\
-                                         (data["Lon (°)"] <= region[1]) ]
-            data = data[(data["Lat (°)"] >= region[2]) &\
-                            (data["Lat (°)"] <= region[3]) ]
+            data = data[(data["lon"] >= region[0]) &\
+                                         (data["lon"] <= region[1]) ]
+            data = data[(data["lat"] >= region[2]) &\
+                            (data["lat"] <= region[3]) ]
             if data.empty:
                 continue
-            data = data.drop_duplicates(subset=["MD (ft)","Z (m)"])
-            data = data.drop_duplicates(subset=["TVD (ft)","Z (m)"])
-            x_MD = data["MD (ft)"].to_numpy()
-            x_TVD = data["TVD (ft)"].to_numpy()
-            lat = data["Lat (°)"].to_numpy()
-            lon = data["Lon (°)"].to_numpy()
+            data = data.drop_duplicates(subset=["MD","z"])
+            data = data.drop_duplicates(subset=["TVD","z"])
+            x_MD = data["MD"].to_numpy()
+            x_TVD = data["TVD"].to_numpy()
+            lat = data["lat"].to_numpy()
+            lon = data["lon"].to_numpy()
 
             f_MD2lat= interpolate.interp1d(x_MD, lat,
                                             kind="linear",
@@ -247,84 +273,56 @@ def map(region,
                                             kind="linear",
                                             fill_value="extrapolate")
            
-            injection = wells["injection_path"]
-            if injection != None:
-                injection = pd.read_csv(injection)
-                injection["name"] = injection["name"].apply(lambda x: x.strip())
-                min_inj = injection["water_flow"].min()
-                max_inj = injection["water_flow"].max()
-                # step = (max_inj-min_inj)/10
-                step = 1e4
-            else:
-                injection = pd.DataFrame()
-
-
             
-
-
             if not injection.empty:
-                _injection = injection[injection["name"] == well.strip()]
-                if not _injection.empty:
-                    for i,row in _injection.iterrows():
-                        depth_type = row["depth_type"]
-                        min_depth = row["min"]
-                        max_depth = row["max"]
+                _injection = injection
+                for i,row in _injection.iterrows():
+                    depth_type = row["depth_type"]
+                    min_depth = row["min"]
+                    max_depth = row["max"]
+                    if wells.injection_cmap != None:
+                        inj_size = [row[wells.injection_cmap.color_target]]*30
+                    else:
                         inj_size = [row["water_flow"]]*30
-                        if depth_type.upper() == "MD": 
-                            inj_md = np.linspace(min_depth,max_depth,num=30,endpoint=True)
-                            inj_md = np.clip(inj_md, min(x_MD), max(x_MD))
-                            inj_lat = f_MD2lat(inj_md)
-                            inj_lon = f_MD2lon(inj_md)
-                        elif depth_type.upper() == "TVD": 
-                            inj_tvd = np.linspace(min_depth,max_depth,num=30,endpoint=True)
-                            inj_tvd = np.clip(inj_tvd, min(x_TVD), max(x_TVD))
-                            inj_lat = f_TVD2lat(inj_tvd)
-                            inj_lon = f_TVD2lon(inj_tvd)
 
-                        # print(inj_lon)
-                        # print(inj_lat)
-                        # fig.plot(
-                        #     x=inj_lon,
-                        #     y=inj_lat,
-                        #     pen=f"8p,blue",
-                        #     transparency=50
-                        #     )
-                        # pygmt.makecpt(cmap='cool',
-                        #             reverse=True,
-                        #             transparency=80,
-                        #             series=[min_inj,max_inj,step])
-                        if isinstance(injection_cmap,dict):
-                            inj_cmap_label = injection_cmap["label"]
-                            _injection_cmap = injection_cmap.copy() 
+                    if depth_type.upper() == "MD": 
+                        inj_md = np.linspace(min_depth,max_depth,num=30,endpoint=True)
+                        inj_md = np.clip(inj_md, min(x_MD), max(x_MD))
+                        inj_lat = f_MD2lat(inj_md)
+                        inj_lon = f_MD2lon(inj_md)
+                    elif depth_type.upper() == "TVD": 
+                        inj_tvd = np.linspace(min_depth,max_depth,num=30,endpoint=True)
+                        inj_tvd = np.clip(inj_tvd, min(x_TVD), max(x_TVD))
+                        inj_lat = f_TVD2lat(inj_tvd)
+                        inj_lon = f_TVD2lon(inj_tvd)
 
-                            if not injection_cmap["series"]:
-                                min_val = min_inj
-                                max_val = max_inj
-                                step = step
-                                _injection_cmap["series"] = [min_val,max_val,step]
-                            
-                            _injection_cmap.pop('label', None)
+                    if isinstance(_injection_cmap,dict):
+                        _injection_cmap.pop('color_target', None)
+                        _injection_cmap.pop('label', None)
 
-                            pygmt.makecpt(**_injection_cmap)
-                            # pygmt.makecpt(cmap='cool',
-                            #             reverse=True,
-                            #             transparency=80,
-                            #             series=[min_inj,max_inj,step])
+                        pygmt.makecpt(**_injection_cmap)
 
-                            fig.plot(
-                                x=inj_lon,
-                                y=inj_lat,
-                                cmap=True,
-                                color=inj_size,
-                                size=None,
-                                style="g0.3",
-                                )
-                            with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
-                                fig.colorbar(frame=["af",f'y+l{inj_cmap_label}'],
-                                            position='JMR+o1c/0c+e',
-                                            transparency=80)
-                        else:
-                            pass
+                        fig.plot(
+                            x=inj_lon,
+                            y=inj_lat,
+                            cmap=True,
+                            color=inj_size,
+                            size=None,
+                            style="g0.3",
+                            )
+                        with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
+                            fig.colorbar(frame=["af",f'y+l{inj_cmap_label}'],
+                                        position='JMR+o1c/0c+e',
+                                        transparency=80)
+                    else:
+                        fig.plot(
+                            x=inj_lon,
+                            y=inj_lat,
+                            cmap=False,
+                            color="blue",
+                            size=None,
+                            style="g0.3",
+                            )
     
     if fms:
         for fm in fms:
@@ -377,13 +375,10 @@ def map(region,
                     # plot_latitude=False
                 )
 
-
     if shapes_after_catalog:
         for shape in shapes_after_catalog:
             shape = shape.to_dict()
             fig.plot(**shape)
-
-
 
     if profiles:
         for k,profile in enumerate(profiles):
@@ -448,6 +443,7 @@ def profile_plots(region,catalogs,profiles,
                 wells=None,
                 depth=[0,3e3],
                 subsize = ("12c", "12c"),
+                figsize = None,
                 cmap_args = {"cmap":'rainbow', 
                         "reverse":True,
                         "series":[0, 2500] },
@@ -721,7 +717,7 @@ def profile_plots(region,catalogs,profiles,
 
                 labeled = False
                 if isinstance(wells,dict):
-                    color_mech_sta = wells["color_mech_sta"]
+                    color_mech_sta = wells["color"]
                     mech_state = wells["mech_sta_path"]
                     injection = wells["injection_path"] 
                     injection_cmap = wells["injection_cmap"] 
@@ -739,21 +735,21 @@ def profile_plots(region,catalogs,profiles,
 
                     xl = pd.read_excel(mech_state, sheet_name = None)
                     for well, well_df in xl.items():
-                        data = well_df[["Lon (°)","Lat (°)","Z (m)", "MD (ft)","TVD (ft)"]]
+                        data = well_df[["lon","lat","z", "MD","TVD"]]
 
-                        data = data[(data["Lon (°)"] >= region[0]) &\
-                                         (data["Lon (°)"] <= region[1]) ]
-                        data = data[(data["Lat (°)"] >= region[2]) &\
-                                        (data["Lat (°)"] <= region[3]) ]
+                        data = data[(data["lon"] >= region[0]) &\
+                                         (data["lon"] <= region[1]) ]
+                        data = data[(data["lat"] >= region[2]) &\
+                                        (data["lat"] <= region[3]) ]
                         if data.empty:
                             continue
 
-                        data = data.drop_duplicates(subset=["MD (ft)","Z (m)"])
-                        data = data.drop_duplicates(subset=["TVD (ft)","Z (m)"])
+                        data = data.drop_duplicates(subset=["MD","z"])
+                        data = data.drop_duplicates(subset=["TVD","z"])
 
-                        x_MD = data["MD (ft)"].to_numpy()
-                        x_TVD = data["TVD (ft)"].to_numpy()
-                        y_depth = data["Z (m)"].to_numpy()
+                        x_MD = data["MD"].to_numpy()
+                        x_TVD = data["TVD"].to_numpy()
+                        y_depth = data["z"].to_numpy()
 
                         f_MD2depth= interpolate.interp1d(x_MD, y_depth,
                                                         kind="linear",

@@ -160,8 +160,7 @@ prof_fig = seismic_profile.profile_plots(region=reg,
                 profiles= profiles,
                 depth=[0,200],
                 subsize = ("14c", "14c"),
-                depth_unit="km",
-                save=True)
+                depth_unit="km")
 prof_fig.show()
 outpath = os.path.join(rep_out,"vmm_prof.pdf")
 prof_fig.savefig(outpath,dpi=300)
