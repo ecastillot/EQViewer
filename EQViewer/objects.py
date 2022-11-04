@@ -5,19 +5,24 @@
 #  * @modify date 2022-11-03 12:07:04
 #  * @desc [description]
 #  */
+import copy
 import types
 import pygmt
 import pandas as pd
+import datetime as dt
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from obspy.geodetics.base import gps2dist_azimuth
+from . import utils as ut
 
-class Viewer():
-    def __init__(self,**kwargs):
-        self.kwargs = kwargs
-    def to_dict(self):
-        return self.kwargs
+def args_cleaner(args,rm_args=[]):
+    info = args
+    for key in list(info.keys()):
+        if key in rm_args:
+            info.pop(key,None)
 
-class Catalog(Viewer):
+    return info
+class Catalog():
     def __init__(self,
             data,
             size=None,
@@ -27,7 +32,7 @@ class Catalog(Viewer):
             label="data",
             transparency=0,
             pen=None,
-            ) -> None:
+            **kwargs) -> None:
 
         """
         Parameters:
@@ -60,24 +65,19 @@ class Catalog(Viewer):
             transparency of your plots
         pen : str or None
             color and size of the symbol border
+        kwargs: other pygmt.plot arguments
         """
 
         
         columns = ['origin_time','latitude','longitude','depth','magnitude']
-        cols = list(set(columns) & set(data.columns.to_list()))
-        if list(set(cols)) != list(set(columns)):
+        check =  all(item in data.columns.to_list() for item in columns)
+        if not check:
             raise Exception("There is not the mandatory columns for the data in Catalog object."\
                             +"->'origin_time','latitude','longitude','depth','magnitude'")
+
         data = data.drop_duplicates(subset=columns,ignore_index=True)
-        data["origin_time"] = pd.to_datetime(data["origin_time"]).dt.tz_localize(None)
+        pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
         self.data = data[columns]
-        
-        if type(size) is types.LambdaType:
-            size = data.magnitude.apply(size)
-        elif size == None:
-            size = size
-        else:
-            raise Exception("size parameter must be a lambda function")
         self.size = size
         self.color = color
         self.label = label
@@ -85,24 +85,106 @@ class Catalog(Viewer):
         self.apply_cbar = apply_cbar
         self.transparency = transparency
         self.pen = pen
-
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        self.kwargs = kwargs
 
     @property
     def empty(self):
         return self.data.empty
 
+    @property
+    def info2pygmt(self):
+        rm_args = ["apply_cbar"]
+        info_dict = args_cleaner(self.__dict__.copy(),rm_args)
+        return info_dict
+
+    @property
+    def size2plot(self):
+        if type(self.size) is types.LambdaType:
+            size = self.data.magnitude.apply(self.size)
+        elif size == None:
+            size = size
+        else:
+            raise Exception("size parameter must be a lambda function")
+        return size
+
     def __len__(self):
         return len(self.data)
 
-    def __str__(self) -> str:
-        msg = f"Catalog | {self.__len__()} events "\
-                +f"| start:{self.data.origin_time.min()} "\
-                +f"| end:{self.data.origin_time.max()}"
+    def __str__(self,extended=False) -> str:
+        if extended:
+            timefmt = "%Y%m%dT%H:%M:%S"
+            start=  self.data.origin_time.min()
+            end = self.data.origin_time.max()
+            region = list(map(lambda x: round(x,2),self.get_region()))
+            msg = f"Catalog | {self.__len__()} events "\
+                    +f"\n\tperiod: [{start.strftime(timefmt)} - {end.strftime(timefmt)}]"\
+                    +f"\n\tdepth : {[round(self.data.depth.min(),2),round(self.data.depth.max(),2)]}"\
+                    +f"\n\tmagnitude : {[round(self.data.magnitude.min(),2),round(self.data.magnitude.max(),2)]}"\
+                    +f"\n\tregion: {region}"
+        else:
+            msg = f"Catalog | {self.__len__()} events "
+
         return msg
+
+    def copy(self):
+        return copy.deepcopy(self)
+
+    def sort_values(self,**args):
+        """
+        The parameters are the pd.DataFrame.sort_values parameters
+        """
+        self.data = self.data.sort_values(**args)
+        return self
+
+    def filter_datetime(self,starttime=None,endtime=None):
+        """
+        Filter the period of the catalog.
+
+        Parameters:
+        -----------
+        starttime: datetime.datetime
+            start time
+        endtime: datetime.datetime
+            end time
+        
+        """
+        if starttime != None and \
+            not isinstance(starttime,dt.datetime):
+            raise Exception("starttime must be a datetime object")
+
+        if endtime != None and \
+            not isinstance(endtime,dt.datetime):
+            raise Exception("starttime must be a datetime object")
+
+        if isinstance(starttime,dt.datetime) \
+            and isinstance(endtime,dt.datetime):
+            if endtime < starttime:
+                raise Exception("endtime must be greater than starttime")
+
+        if isinstance(starttime,dt.datetime):
+            self.data = self.data[self.data["origin_time"]>=starttime]
+        if isinstance(endtime,dt.datetime):
+            self.data = self.data[self.data["origin_time"]<=endtime]
+        return self
+
+    def filter_region(self,polygon):
+        """
+        Filter the period of the catalog.
+
+        Parameters:
+        -----------
+        polygon: list of tuples
+            Each tuple is consider a point (lon,lat).
+            The first point must be equal to the last point in the polygon.
+        
+        """
+        if polygon[0] != polygon[-1]:
+            raise Exception("The first point must be equal to the last point in the polygon.")
+
+        is_in_polygon = lambda x: ut.inside_the_polygon((x.longitude,x.latitude),polygon)
+        mask = self.data[["longitude","latitude"]].apply(is_in_polygon,axis=1)
+        self.data = self.data[mask]
+        return self
 
     def get_region(self):
         """
@@ -113,21 +195,19 @@ class Catalog(Viewer):
         return [lonw, lone, lats, latn]
 
     def plot(self,fig=None,
-            sort_dict = {"by":"depth",
-                        "ascending":True},
-            cbar=None):
+            cbar=None,
+            show_cbar=True):
         """
         Parameters:
         -----------
         fig: None or pygmt.Figure
             Basemap figure
-        sort_dict: dict
-            The items are the pd.DataFrame.sort_values parameters
         cbar: None or Cbar
             Colorbar applied to the catalog
+        show_cbar: bool
+            Show the colorbar
         """
         data = self.data
-        data = data.sort_values(**sort_dict)
 
         if fig == None:
             fig = pygmt.Figure() 
@@ -149,24 +229,26 @@ class Catalog(Viewer):
             fig.plot(
                 x=data.longitude,
                 y=data.latitude,
-                size=self.size,
+                size=self.size2plot,
                 color=data[cbar.color_target],
                 cmap=True,
                 style=self.style,
                 pen=self.pen,
                 )
-            fig.colorbar(frame=f'af+l"{cbar.label}"',
+            if show_cbar:
+                fig.colorbar(frame=f'af+l"{cbar.label}"',
                         position="JBC+e")
         else:
             fig.plot(
                 x=data.longitude,
                 y=data.latitude,
-                size=self.size,
+                size=self.size2plot,
                 label=self.label,
                 color=self.color,
                 style=self.style,
                 pen=self.pen,
             )
+
         return fig
 
     def mplot(self,color_target="depth",
@@ -199,7 +281,125 @@ class Catalog(Viewer):
         ax.set_ylabel("Latitude [°]")
         return ax
 
-class Station(Viewer):
+class Catalogs():
+    def __init__(self,catalogs=[],cbar = None):
+        """
+        Parameters:
+        -----------
+        catalogs: list
+            list of Catalog objects
+        cbar: Cbar object
+            Colorbar applied.
+        """
+        self.catalogs = catalogs
+        self.cbar = cbar
+        
+    def __iter__(self):
+        return list(self.catalogs).__iter__()
+
+    def __nonzero__(self):
+        return bool(len(self.catalogs))
+
+    def __len__(self):
+        return len(self.catalogs)
+    
+    def __str__(self,extended=False) -> str:
+        msg = f"Catalogs ({self.__len__()} catalogs)\n"
+        msg += "-"*len(msg) 
+
+        submsgs = []
+        for i,catalog in enumerate(self.__iter__(),1):
+            submsg = f"{i}. "+catalog.__str__(extended=extended)
+            submsgs.append(submsg)
+                
+        if len(self.catalogs)<=20 or extended is True:
+            submsgs = "\n".join(submsgs)
+        else:
+            three_first_submsgs = submsgs[0:3]
+            last_two_subsgs = submsgs[-2:]
+            len_others = len(self.catalogs) -len(three_first_submsgs) - len(last_two_subsgs)
+            submsgs = "\n".join(three_first_submsgs+\
+                                [f"...{len_others} other catalogs..."]+\
+                                last_two_subsgs)
+
+        return msg+ "\n" +submsgs
+        
+    def __setitem__(self, index, trace):
+        self.catalogs.__setitem__(index, trace)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(catalogs=self.catalogs.__getitem__(index))
+        else:
+            return self.catalogs.__getitem__(index)
+
+    def __delitem__(self, index):
+        return self.catalogs.__delitem__(index)
+
+    def __getslice__(self, i, j, k=1):
+        return self.__class__(catalogs=self.catalogs[max(0, i):max(0, j):k])
+
+    def append(self, catalog):
+        if isinstance(catalog, Catalog):
+            self.catalogs.append(catalog)
+        else:
+            msg = 'Append only supports a single Catalog object as an argument.'
+            raise TypeError(msg)
+        return self
+
+    def copy(self):
+        return copy.deepcopy(self)
+
+    def get_region(self):
+        lons,lats = [],[]
+        for catalog in self.catalogs:
+            region = catalog.get_region()
+            lons.append(region[0:2])
+            lats.append(region[2:])
+        lons = [ x for sublist in lons for x in sublist]
+        lats = [ x for sublist in lats for x in sublist]
+        region = [min(lons),max(lons),min(lats),max(lats)]
+        return region
+
+    def plot(self,fig=None,
+            cbar=None):
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+        if cbar == None:
+            data = []
+            for catalog in self.catalogs:
+                if catalog.apply_cbar:
+                    data.append(catalog.data)
+            data = pd.concat(data)
+            zmin = data.depth.min()
+            zmax = data.depth.max()
+            cbar = Cbar(color_target="depth",
+                        label="depth",
+                        cmap="rainbow",
+                        series=[zmin,zmax],
+                        reverse=True,
+                        overrule_bg=True)
+
+        show_cbar = []
+        for catalog in self.catalogs:
+            if catalog.apply_cbar:
+                catalog.plot(fig=fig,cbar=cbar,show_cbar=False)
+                _show_cbar = True
+            else:
+                catalog.plot(fig=fig,cbar=None,show_cbar=False)
+                _show_cbar = False
+            show_cbar.append(_show_cbar)
+
+        if any(show_cbar):
+            fig.colorbar(frame=f'af+l"{cbar.label}"',
+                        position="JBC+e")
+
+        return fig
+
+class Station():
     def __init__(self,data,
                 name_in_map=False,
                 color="black",
@@ -244,11 +444,6 @@ class Station(Viewer):
         self.pen = pen
         self.transparency = transparency
 
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
-
     @property
     def empty(self):
         return self.data.empty
@@ -273,7 +468,7 @@ class Station(Viewer):
         ax.set_ylabel("Latitude [°]")
         return ax
 
-class Well(Viewer):
+class Well():
     def __init__(self,data,name,
                 color="blue",
                 apply_cbar=False,
@@ -311,10 +506,7 @@ class Well(Viewer):
         self.injection = injection
         self.injection_cbar = injection_cbar
 
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
         @property
         def empty(self):
@@ -344,7 +536,7 @@ class Well(Viewer):
 
     #     return ax
 
-class FocalMechanism(Viewer):
+class FocalMechanism():
     def __init__(self,data,
                 color="red",
                 apply_cbar=False,
@@ -392,10 +584,7 @@ class FocalMechanism(Viewer):
         self.scale_for_m5 = scale_for_m5
         self.main_n = main_n
 
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
     @property
     def empty(self):
@@ -410,7 +599,7 @@ class FocalMechanism(Viewer):
                 +f"| end:{self.data.origin_time.max()}"
         return msg
 
-class Shape(Viewer):
+class Shape():
     def __init__(self,data,**plot_kwargs):
         """
         data: GeoDataFrame
@@ -433,7 +622,7 @@ class Shape(Viewer):
         """
         self.data.plot(**args)
 
-class Profile(Viewer):
+class Profile():
     def __init__(self,
         name, coords, width, 
         colorline="magenta", #only for map figure
@@ -473,12 +662,9 @@ class Profile(Viewer):
         self.grid=grid
         self.legend = legend
 
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
-class Cbar(Viewer):
+class Cbar():
    def __init__(self,color_target,label,**makecpt_kwargs):
         """
         Parameters:
@@ -493,73 +679,11 @@ class Cbar(Viewer):
         self.color_target = color_target
         self.label = label
         self.makecpt_kwargs = makecpt_kwargs
-        l = locals()
-        l.pop("self")
-        l.pop("makecpt_kwargs")
-        l.pop("__class__")
-        l.update(**makecpt_kwargs)
-        super().__init__(**l) 
 
 
-class Catalogs(Viewer):
-    def __init__(self,catalogs=[],cbar = None):
-        """
-        Parameters:
-        -----------
-        catalogs: list
-            list of Catalog objects
-        cbar: Cbar object
-            Colorbar applied.
-        """
-        self.catalogs = catalogs
-        self.cbar = cbar
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
 
-    def __iter__(self):
-        return list(self.catalogs).__iter__()
 
-    def __nonzero__(self):
-        return bool(len(self.catalogs))
-
-    def __len__(self):
-        return len(self.catalogs)
-    
-    def __str__(self) -> str:
-        msg = f"Catalogs ({self.__len__()} catalogs)"
-        submsgs = []
-        for i,catalog in enumerate(self.__iter__(),1):
-            submsg = "\t"+catalog.__str__()
-            submsgs.append(submsg)
-        submsgs = "\n".join(submsgs)
-        return msg+ "\n" +submsgs
-
-    def __setitem__(self, index, trace):
-        self.catalogs.__setitem__(index, trace)
-
-    def __getitem__(self, index):
-        if isinstance(index, slice):
-            return self.__class__(catalogs=self.catalogs.__getitem__(index))
-        else:
-            return self.catalogs.__getitem__(index)
-
-    def __delitem__(self, index):
-        return self.catalogs.__delitem__(index)
-
-    def __getslice__(self, i, j, k=1):
-        return self.__class__(catalogs=self.catalogs[max(0, i):max(0, j):k])
-
-    def append(self, catalog):
-        if isinstance(catalog, Catalog):
-            self.catalogs.append(catalog)
-        else:
-            msg = 'Append only supports a single Catalog object as an argument.'
-            raise TypeError(msg)
-        return self
-
-class Stations(Viewer):
+class Stations():
     def __init__(self,stations=[]):
         """
         Parameters:
@@ -568,12 +692,9 @@ class Stations(Viewer):
             list of Catalog objects
         """
         self.catalogs = stations
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
-class Wells(Viewer):
+class Wells():
     def __init__(self,wells=[],cbar = None):
         """
         Parameters:
@@ -585,12 +706,9 @@ class Wells(Viewer):
         """
         self.wells = wells
         self.cbar = cbar
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
-class FocalMechanisms(Viewer):
+class FocalMechanisms():
     def __init__(self,fms=[],cbar = None):
         """
         Parameters:
@@ -602,12 +720,9 @@ class FocalMechanisms(Viewer):
         """
         self.fms = fms
         self.cbar = cbar
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
-class Shapes(Viewer):
+class Shapes():
     def __init__(self,shapes=[]):
         """
         Parameters:
@@ -616,12 +731,9 @@ class Shapes(Viewer):
             list of Shape objects
         """
         self.shapes = shapes
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
-class Profiles(Viewer):
+class Profiles():
     def __init__(self,profiles=[]):
         """
         Parameters:
@@ -630,10 +742,7 @@ class Profiles(Viewer):
             list of Shape objects
         """
         self.profiles = profiles
-        l = locals()
-        l.pop("self")
-        l.pop("__class__")
-        super().__init__(**l)
+        
 
 
 if __name__ == "__main__":

@@ -7,7 +7,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 import string
 from obspy.geodetics.base import gps2dist_azimuth
-from .objects import Profile
+# from .objects import Profile
+
+def inside_the_polygon(p,pol_points):
+    """
+    Parameters:
+    -----------
+    p: tuple
+        Point of the event. (lon,lat)
+    pol_points: list of tuples
+        Each tuple indicates one polygon point (lon,lat).
+    Returns: 
+    --------
+    True inside 
+    """
+    V = pol_points
+
+    cn = 0  
+    V = tuple(V[:])+(V[0],)
+    for i in range(len(V)-1): 
+        if ((V[i][1] <= p[1] and V[i+1][1] > p[1])   
+            or (V[i][1] > p[1] and V[i+1][1] <= p[1])): 
+            vt = (p[1] - V[i][1]) / float(V[i+1][1] - V[i][1])
+            if p[0] < V[i][0] + vt * (V[i+1][0] - V[i][0]): 
+                cn += 1  
+    condition= cn % 2  
+    
+    if condition== 1:   
+        return True
+    else:
+        return False
 
 def get_xy_profile_coords_from_r_phi(r,phi,origin,d2km=114):
 

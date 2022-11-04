@@ -2,6 +2,7 @@
 import sys
 import os
 import numpy as np
+import datetime as dt
 repository_path = r"/home/emmanuel/EDCT/EQviewer"  ##change this path where is located the main directory
 rep_data = os.path.join(repository_path,"data")
 rep_out = os.path.join(repository_path,"example")
@@ -29,7 +30,45 @@ catalog = Catalog(data=events,
                     # size=None,
                     apply_cbar = True,
                     pen = None)
+cat1 = catalog.copy()
+
+
+filter_domain=[-76,-75,5,6]
+polygon = [(filter_domain[0],filter_domain[2]),
+                (filter_domain[0],filter_domain[3]),
+                (filter_domain[1],filter_domain[3]),
+                (filter_domain[1],filter_domain[2]),
+                (filter_domain[0],filter_domain[2])
+                ]
+cat1 = cat1.filter_region(polygon)
+# print(cat1)
+# print(cat1.__str__(True))
+# exit()
+# print(cat1.__str__(True))
+cat1.color = "gray"
+cat1.apply_cbar = False
+cat2 = catalog.filter_datetime(starttime=dt.datetime(2022,1,1))    
+# fig = cat2.plot()
+# fig.show()
+catalogs = Catalogs([cat1,cat2])  
+# print(catalogs) 
+print(catalogs.__str__(True)) 
+fig = catalogs.plot(cbar=Cbar("depth","catalogs",cmap="oleron",
+                                series=[0,200]))
+fig.show()
+# catalogs 
+# region = catalogs.get_region()           
+# print(region)
+# print(catalogs)
+# print(cat2)
+
 # fig = catalog.plot()
+# fig.show()
+# plt.show()
+# print(catalog.__dict__)
+# catalog.color = "red"
+# print(catalog.__dict__)
+# catalog = Catalogs([catalog,catalog,catalog])
 # fig = catalog.mplot()
 # fig.show()
 # plt.show()
