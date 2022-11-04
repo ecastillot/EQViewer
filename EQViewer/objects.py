@@ -5,6 +5,8 @@
 #  * @modify date 2022-11-03 12:07:04
 #  * @desc [description]
 #  */
+import types
+import pygmt
 import pandas as pd
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -20,11 +22,11 @@ class Catalog(Viewer):
             data,
             size=None,
             style="c0.2c",
-            cbar=False,
+            apply_cbar=False,
             color="lightblue",
             label="data",
             transparency=0,
-            pen="black",
+            pen=None,
             ) -> None:
 
         """
@@ -49,14 +51,14 @@ class Catalog(Viewer):
             
             For instance, use c0.2c circle,0.2 centimeters for all data
             use cc, for circle and centimeters (this time size must be specified)
-        cbar: bool
+        apply_cbar: bool
             Use Colorbar (the specifications of the colorbar are located in Catalogs object). 
         color: str or None
             Color from pygmt color gallery. 
-            It is not considered when cbar=True
+            It is not considered when apply_cbar=True
         transparency: float
             transparency of your plots
-        pen : str
+        pen : str or None
             color and size of the symbol border
         """
 
@@ -69,11 +71,18 @@ class Catalog(Viewer):
         data = data.drop_duplicates(subset=columns,ignore_index=True)
         data["origin_time"] = pd.to_datetime(data["origin_time"]).dt.tz_localize(None)
         self.data = data[columns]
+        
+        if type(size) is types.LambdaType:
+            size = data.magnitude.apply(size)
+        elif size == None:
+            size = size
+        else:
+            raise Exception("size parameter must be a lambda function")
+        self.size = size
         self.color = color
         self.label = label
-        self.size = size
         self.style = style
-        self.cbar = cbar
+        self.apply_cbar = apply_cbar
         self.transparency = transparency
         self.pen = pen
 
@@ -95,9 +104,70 @@ class Catalog(Viewer):
                 +f"| end:{self.data.origin_time.max()}"
         return msg
 
-    def plot(self,fig):
+    def get_region(self):
+        """
+        It gets the region according to the limits in the catalog
+        """
+        lonw,lone = self.data.longitude.min(),self.data.longitude.max()
+        lats,latn = self.data.latitude.min(),self.data.latitude.max()
+        return [lonw, lone, lats, latn]
+
+    def plot(self,fig=None,
+            sort_dict = {"by":"depth",
+                        "ascending":True},
+            cbar=None):
+        """
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        sort_dict: dict
+            The items are the pd.DataFrame.sort_values parameters
+        cbar: None or Cbar
+            Colorbar applied to the catalog
+        """
+        data = self.data
+        data = data.sort_values(**sort_dict)
+
         if fig == None:
-            fig = plt.figure(figsize=(10, 10))
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+        if self.apply_cbar:
+            if cbar == None:
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                cbar = Cbar(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+
+            pygmt.makecpt(**cbar.makecpt_kwargs)
+            fig.plot(
+                x=data.longitude,
+                y=data.latitude,
+                size=self.size,
+                color=data[cbar.color_target],
+                cmap=True,
+                style=self.style,
+                pen=self.pen,
+                )
+            fig.colorbar(frame=f'af+l"{cbar.label}"',
+                        position="JBC+e")
+        else:
+            fig.plot(
+                x=data.longitude,
+                y=data.latitude,
+                size=self.size,
+                label=self.label,
+                color=self.color,
+                style=self.style,
+                pen=self.pen,
+            )
+        return fig
 
     def mplot(self,color_target="depth",
             s=8,cmap="viridis",
@@ -206,7 +276,7 @@ class Station(Viewer):
 class Well(Viewer):
     def __init__(self,data,name,
                 color="blue",
-                cbar=False,
+                apply_cbar=False,
                 injection = pd.DataFrame(),
                 injection_cbar = None
                 ) -> None:
@@ -221,7 +291,7 @@ class Well(Viewer):
         color: str or None
             Color from pygmt color gallery. 
             It is not considered when cbar=True
-        cbar: bool
+        apply_cbar: bool
             Use Colorbar (the specifications of the colorbar are located in Wells object). 
         injection: pd.DataFrame
             Dataframe with the next mandatory columns:
@@ -236,7 +306,7 @@ class Well(Viewer):
                             +"->'latitude','longitude','z','TVD','MD'")
         self.data = data[columns]
         self.color = color
-        self.cbar = cbar
+        self.apply_cbar = apply_cbar
         self.name = name
         self.injection = injection
         self.injection_cbar = injection_cbar
@@ -277,7 +347,7 @@ class Well(Viewer):
 class FocalMechanism(Viewer):
     def __init__(self,data,
                 color="red",
-                cbar=False,
+                apply_cbar=False,
                 scale_for_m5=1,
                 main_n=2,
                 ):
@@ -292,7 +362,7 @@ class FocalMechanism(Viewer):
         color: str or None
             Color from pygmt color gallery. 
             It is not considered when cbar=True
-        cbar: bool
+        apply_cbar: bool
             Use Colorbar (the specifications of the colorbar are located in FocalMechanisms object).
         scale_for_m5: float
             default: M5 -> 1cm
@@ -318,7 +388,7 @@ class FocalMechanism(Viewer):
 
         self.data = data
         self.color = color
-        self.cbar = cbar
+        self.apply_cbar = apply_cbar
         self.scale_for_m5 = scale_for_m5
         self.main_n = main_n
 
@@ -369,7 +439,7 @@ class Profile(Viewer):
         colorline="magenta", #only for map figure
         color= "blue", # only for profile figure.
                         #color of the events in the profile. Only if cbar is False
-        cbar=True, # only for profile figure. # cbar controlled by cbar_profile_args
+        apply_cbar=True, # only for profile figure. # cbar controlled by cbar_profile_args
         grid=None,
         legend=False,
         ):
@@ -386,7 +456,7 @@ class Profile(Viewer):
         color: str or None
             Color from pygmt color gallery. 
             It is not considered when cbar=True
-        cbar: bool
+        apply_cbar: bool
             Use Colorbar (the specifications of the colorbar
             are located in FocalMechanisms object).
         grid: 2d-tuple
@@ -399,7 +469,7 @@ class Profile(Viewer):
         self.width = width
         self.colorline = colorline
         self.color = color
-        self.cbar = cbar
+        self.apply_cbar = apply_cbar
         self.grid=grid
         self.legend = legend
 
@@ -429,6 +499,7 @@ class Cbar(Viewer):
         l.pop("__class__")
         l.update(**makecpt_kwargs)
         super().__init__(**l) 
+
 
 class Catalogs(Viewer):
     def __init__(self,catalogs=[],cbar = None):
