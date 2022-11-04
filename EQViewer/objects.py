@@ -15,6 +15,11 @@ import matplotlib.pyplot as plt
 from obspy.geodetics.base import gps2dist_azimuth
 from . import utils as ut
 
+def get_cmap(n, name='hsv'):
+    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+    RGB color; the keyword argument name must be a standard mpl colormap name.'''
+    return plt.cm.get_cmap(name, n)
+
 def args_cleaner(args,rm_args=[]):
     info = args
     for key in list(info.keys()):
@@ -22,6 +27,7 @@ def args_cleaner(args,rm_args=[]):
             info.pop(key,None)
 
     return info
+
 class Catalog():
     def __init__(self,
             data,
@@ -69,15 +75,17 @@ class Catalog():
         """
 
         
-        columns = ['origin_time','latitude','longitude','depth','magnitude']
-        check =  all(item in data.columns.to_list() for item in columns)
+        self.columns = ['origin_time','latitude','longitude','depth','magnitude']
+        check =  all(item in data.columns.to_list() for item in self.columns)
         if not check:
             raise Exception("There is not the mandatory columns for the data in Catalog object."\
                             +"->'origin_time','latitude','longitude','depth','magnitude'")
 
-        data = data.drop_duplicates(subset=columns,ignore_index=True)
+        data = data.drop_duplicates(subset=self.columns,ignore_index=True)
         pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
-        self.data = data[columns]
+        self.data = data[self.columns]
+        if self.empty:
+            raise Exception("No data in the catalog")
         self.size = size
         self.color = color
         self.label = label
@@ -126,12 +134,35 @@ class Catalog():
 
         return msg
 
+    def append(self, data):
+        """
+        append data
+        """
+        if isinstance(data, pd.DataFrame):
+
+            check =  all(item in data.columns.to_list() for item in self.columns)
+            if not check:
+                raise Exception("There is not the mandatory columns for the data in Catalog object."\
+                                +"->'origin_time','latitude','longitude','depth','magnitude'")
+
+            data = data.drop_duplicates(subset=self.columns,ignore_index=True)
+            pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
+            data = data[self.columns]
+
+            self.data = pd.concat([self.data,data])
+        else:
+            msg = 'Append only supports a single Dataframe object as an argument.'
+            raise TypeError(msg)
+        return self
+
     def copy(self):
+        """Deep copy of the class"""
         return copy.deepcopy(self)
 
     def sort_values(self,**args):
         """
-        The parameters are the pd.DataFrame.sort_values parameters
+        Sort values. Take in mind that it could affect the order of the events plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
         """
         self.data = self.data.sort_values(**args)
         return self
@@ -169,7 +200,7 @@ class Catalog():
 
     def filter_region(self,polygon):
         """
-        Filter the period of the catalog.
+        Filter the region of the catalog.
 
         Parameters:
         -----------
@@ -198,6 +229,8 @@ class Catalog():
             cbar=None,
             show_cbar=True):
         """
+        Plot the catalog.
+
         Parameters:
         -----------
         fig: None or pygmt.Figure
@@ -251,9 +284,25 @@ class Catalog():
 
         return fig
 
-    def mplot(self,color_target="depth",
-            s=8,cmap="viridis",
+    def matplot(self,color_target="depth",
+            s=8,cbar="viridis",show_cbar=True,
             ax=None):
+        """
+        Quickly matplotlib figure
+
+        Parameters:
+        color_target: str
+            target to apply cbar
+        s: float
+            marker size
+        cbar: str
+            Name of the colorbar
+        show_cbar: bool
+            Show colorbar.
+        ax: axis
+            existent axis
+        """
+
         if ax == None:
             fig = plt.figure(figsize=(10, 10))
             ax = fig.add_subplot(111)
@@ -262,20 +311,23 @@ class Catalog():
 
         if color_target == "origin_time":
             cb = ax.scatter(self.data.longitude, self.data.latitude,
-                    c=mdates.date2num(self.data[color_target]), s=s, cmap=cmap)
-            cbar = fig.colorbar(cb)
-            cbar.ax.set_ylim(cbar.ax.get_ylim()[::-1])
-            cbar.set_label(f"{color_target}")
+                    c=mdates.date2num(self.data[color_target]), s=s, cmap=cbar)
             
-            loc = mdates.AutoDateLocator()
-            cbar.ax.yaxis.set_major_locator(loc)
-            cbar.ax.yaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+            if show_cbar:
+                cbar = fig.colorbar(cb)
+                cbar.ax.set_ylim(cbar.ax.get_ylim()[::-1])
+                cbar.set_label(f"{color_target}")
+                
+                loc = mdates.AutoDateLocator()
+                cbar.ax.yaxis.set_major_locator(loc)
+                cbar.ax.yaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
         else:
             cb = ax.scatter(self.data.longitude, self.data.latitude,
-                    c=self.data[color_target], s=s, cmap=cmap)
-            cbar = fig.colorbar(cb)
-            cbar.ax.set_ylim(cbar.ax.get_ylim()[::-1])
-            cbar.set_label(f"{color_target}")
+                    c=self.data[color_target], s=s, cmap=cbar)
+            if show_cbar:
+                cbar = fig.colorbar(cb)
+                cbar.ax.set_ylim(cbar.ax.get_ylim()[::-1])
+                cbar.set_label(f"{color_target}")
 
         ax.set_xlabel("Longitude [°]")
         ax.set_ylabel("Latitude [°]")
@@ -340,6 +392,9 @@ class Catalogs():
         return self.__class__(catalogs=self.catalogs[max(0, i):max(0, j):k])
 
     def append(self, catalog):
+        """
+        append a catalog
+        """
         if isinstance(catalog, Catalog):
             self.catalogs.append(catalog)
         else:
@@ -348,9 +403,59 @@ class Catalogs():
         return self
 
     def copy(self):
+        """Deep copy of the class"""
         return copy.deepcopy(self)
 
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the events plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        catalogs = []
+        for catalog in self.catalogs:
+            catalogs.append(catalog.sort_values(**args))
+        self.catalogs = catalogs
+        return self
+    
+    def filter_datetime(self,starttime=None,endtime=None):
+        """
+        Filter the period of the catalog.
+
+        Parameters:
+        -----------
+        starttime: datetime.datetime
+            start time
+        endtime: datetime.datetime
+            end time
+        
+        """
+        catalogs = []
+        for catalog in self.catalogs:
+            catalogs.append(catalog.filter_datetime(starttime,endtime))
+        self.catalogs = catalogs
+        return self
+
+    def filter_region(self,polygon):
+        """
+        Filter the region of the catalog.
+
+        Parameters:
+        -----------
+        polygon: list of tuples
+            Each tuple is consider a point (lon,lat).
+            The first point must be equal to the last point in the polygon.
+        
+        """
+        catalogs = []
+        for catalog in self.catalogs:
+            catalogs.append(catalog.filter_region(polygon))
+        self.catalogs = catalogs
+        return self
+
     def get_region(self):
+        """
+        It gets the region according to the limits of all events as a whole
+        """
         lons,lats = [],[]
         for catalog in self.catalogs:
             region = catalog.get_region()
@@ -362,7 +467,21 @@ class Catalogs():
         return region
 
     def plot(self,fig=None,
-            cbar=None):
+            cbar=None,show_cbar=None):
+
+        """
+        Plot the catalog.
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        cbar: None or Cbar
+            Colorbar applied to the catalog
+        show_cbar: bool
+            Show the colorbar
+        """
+
         if fig == None:
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(),
@@ -383,7 +502,7 @@ class Catalogs():
                         reverse=True,
                         overrule_bg=True)
 
-        show_cbar = []
+        show_catalog_cbar = []
         for catalog in self.catalogs:
             if catalog.apply_cbar:
                 catalog.plot(fig=fig,cbar=cbar,show_cbar=False)
@@ -391,14 +510,15 @@ class Catalogs():
             else:
                 catalog.plot(fig=fig,cbar=None,show_cbar=False)
                 _show_cbar = False
-            show_cbar.append(_show_cbar)
+            show_catalog_cbar.append(_show_cbar)
 
-        if any(show_cbar):
-            fig.colorbar(frame=f'af+l"{cbar.label}"',
+        if any(show_catalog_cbar):
+            if show_cbar:
+                fig.colorbar(frame=f'af+l"{cbar.label}"',
                         position="JBC+e")
 
         return fig
-
+    
 class Station():
     def __init__(self,data,
                 name_in_map=False,
@@ -455,7 +575,7 @@ class Station():
         msg = f"Station | {self.__len__()} stations"
         return msg
 
-    def mplot(self,ax=None):
+    def matplot(self,ax=None):
         if ax == None:
             fig = plt.figure(figsize=(10, 10))
             ax = fig.add_subplot(111)
@@ -616,7 +736,7 @@ class Shape():
     def empty(self):
         return self.data.empty
 
-    def mplot(self,**args):
+    def matplot(self,**args):
         """
         args: See GeoDataFrame args.
         """

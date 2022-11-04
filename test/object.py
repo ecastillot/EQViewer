@@ -40,22 +40,44 @@ polygon = [(filter_domain[0],filter_domain[2]),
                 (filter_domain[1],filter_domain[2]),
                 (filter_domain[0],filter_domain[2])
                 ]
-cat1 = cat1.filter_region(polygon)
+# cat1 = cat1.filter_region(polygon)
 # print(cat1)
 # print(cat1.__str__(True))
 # exit()
 # print(cat1.__str__(True))
-cat1.color = "gray"
+
+a = Catalog()
+a = a.sort_values(by="origin_time")
+print(a)
+# cat1.color = "gray"
+fig = a.plot()
+# # fig = a.plot()
+fig.show()
+# print(cat1)
+# cat1.append(cat1.data)
+# print(cat1)
+exit()
+fig = cat1.matplot()
+plt.show()
 cat1.apply_cbar = False
 cat2 = catalog.filter_datetime(starttime=dt.datetime(2022,1,1))    
 # fig = cat2.plot()
 # fig.show()
 catalogs = Catalogs([cat1,cat2])  
-# print(catalogs) 
-print(catalogs.__str__(True)) 
-fig = catalogs.plot(cbar=Cbar("depth","catalogs",cmap="oleron",
-                                series=[0,200]))
-fig.show()
+
+catalogs = catalogs.sort_values(by="origin_time")
+catalogs = catalogs.filter_datetime(endtime=dt.datetime(2022,5,1))
+catalogs = catalogs.filter_region(polygon)
+for catalog in catalogs:
+        print(catalog.__str__(True))
+
+
+
+# # print(catalogs) 
+# print(catalogs.__str__(True)) 
+# fig = catalogs.plot(cbar=Cbar("depth","catalogs",cmap="oleron",
+#                                 series=[0,200]))
+# fig.show()
 # catalogs 
 # region = catalogs.get_region()           
 # print(region)
