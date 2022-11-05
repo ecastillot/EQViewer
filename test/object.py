@@ -104,8 +104,37 @@ x = seismicity.project((-80,10),(-70,10),(-501,501),verbose=False)
 
 stations_path = "/home/emmanuel/EDCT/EQviewer/data/stations/castilla.csv"
 station = pd.read_csv(stations_path)
-station = Station(data = station)
-print(station.__str__(True))
+station = Station(data = station,color="red")
+sta1 = station.copy()
+network = Network([station,sta1])
+print(network)
+station.remove({"station":["CA01","CA04"]})
+print(network)
+exit()
+station2 = station.copy()
+
+filter_domain=[-73.67,-73.61,3.79,3.87]
+polygon = [(filter_domain[0],filter_domain[2]),
+                (filter_domain[0],filter_domain[3]),
+                (filter_domain[1],filter_domain[3]),
+                (filter_domain[1],filter_domain[2]),
+                (filter_domain[0],filter_domain[2])
+                ]
+station2 = station2.filter_region(polygon )
+station2.color = "yellow"
+network = Network([station,station2])
+network.append(station2.copy())
+print(network)
+# print(networks)
+# print(network.__str__(True))
+# fig = station.plot()
+# fig.show()
+# fig = network.plot()
+# fig.show()
+
+# fig = station.matplot()
+# plt.show()
+# print(station.__str__(True))
 # stations.plot()
 # plt.show()
 # print(stations)

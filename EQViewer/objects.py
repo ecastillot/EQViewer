@@ -5,6 +5,7 @@
 #  * @modify date 2022-11-03 12:07:04
 #  * @desc [description]
 #  */
+from operator import add
 import copy
 import types
 import pygmt
@@ -14,6 +15,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from obspy.geodetics.base import gps2dist_azimuth
 from . import utils as ut
+pygmt.config(FORMAT_GEO_MAP="ddd.xx")
 
 def get_cmap(n, name='hsv'):
     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
@@ -148,13 +150,31 @@ class Catalog():
 
             data = data.drop_duplicates(subset=self.columns,ignore_index=True)
             pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
-            data = data[self.columns]
 
             self.data = pd.concat([self.data,data])
         else:
             msg = 'Append only supports a single Dataframe object as an argument.'
             raise TypeError(msg)
         return self
+
+    def remove(self, rowval):
+        """
+        remove rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[~self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
 
     def copy(self):
         """Deep copy of the class"""
@@ -218,13 +238,37 @@ class Catalog():
         self.data = self.data[mask]
         return self
 
-    def get_region(self):
+    def get_region(self,padding=[]):
         """
         It gets the region according to the limits in the catalog
+        
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
         """
         lonw,lone = self.data.longitude.min(),self.data.longitude.max()
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
-        return [lonw, lone, lats, latn]
+        
+        region = [lonw, lone, lats, latn]
+        
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
 
     def project(self,startpoint,endpoint,
                 width,verbose=True):
@@ -278,7 +322,7 @@ class Catalog():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.get_region(),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
         if self.apply_cbar:
@@ -438,6 +482,24 @@ class Seismicity():
             raise TypeError(msg)
         return self
 
+    def remove(self,rowval):
+        """
+        remove rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        stations = []
+        for station in self.stations:
+            stations.append(station.remove(rowval))
+        self.stations = stations
+        return self
+
     def copy(self):
         """Deep copy of the class"""
         return copy.deepcopy(self)
@@ -497,9 +559,16 @@ class Seismicity():
         self.catalogs = catalogs
         return self
 
-    def get_region(self):
+    def get_region(self,padding=[]):
         """
         It gets the region according to the limits of all events as a whole
+
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
         """
         lons,lats = [],[]
         for catalog in self.catalogs:
@@ -509,6 +578,21 @@ class Seismicity():
         lons = [ x for sublist in lons for x in sublist]
         lats = [ x for sublist in lats for x in sublist]
         region = [min(lons),max(lons),min(lats),max(lats)]
+
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
         return region
 
     def plot(self,fig=None,
@@ -529,7 +613,7 @@ class Seismicity():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.get_region(),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
         if cbar == None:
@@ -566,13 +650,16 @@ class Seismicity():
     
 class Station():
     def __init__(self,data,
-                name_in_map=False,
+                name_in_map=True,
                 color="black",
                 label="stations",
                 transparency = 0,
                 style="i0.3c",
                 pen="black",
-                **kwargs) -> None:
+                plot_args={},
+                text_args={"font":"10p,Helvetica,black",
+                            "fill":None,
+                            "offset":"-0.05c/0.15c"}) -> None:
 
         """
         data: DataFrame
@@ -596,6 +683,10 @@ class Station():
             For instance, use c0.2c circle,0.2 centimeters for all data
         pen : str
             color and size of the symbol border
+        plot_args: dict
+            Arguments of the pygmt.plot
+        plot_text: dict
+            Arguments of the pygmt.text
         """
         self.columns = ['station','latitude','longitude']
         check =  all(item in data.columns.to_list() for item in self.columns)
@@ -610,7 +701,9 @@ class Station():
         self.style = style
         self.pen = pen
         self.transparency = transparency
-        self.kwargs = kwargs
+        self.plot_args = plot_args
+        self.text_args = text_args
+
 
     @property
     def empty(self):
@@ -622,13 +715,34 @@ class Station():
         info_dict = args_cleaner(self.__dict__.copy(),rm_args)
         return info_dict
 
-    def get_region(self):
+    def get_region(self,padding=[]):
         """
         It gets the region according to the limits in the catalog
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
         """
         lonw,lone = self.data.longitude.min(),self.data.longitude.max()
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
-        return [lonw, lone, lats, latn]
+        region = [lonw, lone, lats, latn]
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
 
     def __len__(self):
         return len(self.data)
@@ -641,6 +755,28 @@ class Station():
         else:
             pass
         return msg
+    
+
+
+    def remove(self, rowval):
+        """
+        remove rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[~self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
+
 
     def append(self, data):
         """
@@ -654,16 +790,80 @@ class Station():
                                 +"->'origin_time','latitude','longitude','depth','magnitude'")
 
             data = data.drop_duplicates(subset=self.columns,ignore_index=True)
-            pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
-            data = data[self.columns]
-
             self.data = pd.concat([self.data,data])
         else:
             msg = 'Append only supports a single Dataframe object as an argument.'
             raise TypeError(msg)
         return self
 
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the stations plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        self.data = self.data.sort_values(**args)
+        return self
+
+    def filter_region(self,polygon):
+        """
+        Filter the region of the data.
+
+        Parameters:
+        -----------
+        polygon: list of tuples
+            Each tuple is consider a point (lon,lat).
+            The first point must be equal to the last point in the polygon.
+        
+        """
+        if polygon[0] != polygon[-1]:
+            raise Exception("The first point must be equal to the last point in the polygon.")
+
+        is_in_polygon = lambda x: ut.inside_the_polygon((x.longitude,x.latitude),polygon)
+        mask = self.data[["longitude","latitude"]].apply(is_in_polygon,axis=1)
+        self.data = self.data[mask]
+        return self
+
+    def plot(self,fig=None):
+        """
+        Plot the stations
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        """
+        data = self.data
+
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+
+        fig.plot(
+                x=data["longitude"],
+                y=data["latitude"],
+                color=self.color,
+                label=self.label,
+                style=self.style,
+                pen=self.pen,
+                **self.plot_args
+            )
+        if self.name_in_map:
+            fig.text(x=data["longitude"], 
+                    y=data["latitude"], 
+                    text=data["station"],
+                    **self.text_args)
+        return fig
+
     def matplot(self,ax=None):
+        """
+        Quickly matplotlib figure
+        """
         if ax == None:
             fig = plt.figure(figsize=(10, 10))
             ax = fig.add_subplot(111)
@@ -675,6 +875,175 @@ class Station():
         ax.set_xlabel("Longitude [°]")
         ax.set_ylabel("Latitude [°]")
         return ax
+
+class Network():
+    def __init__(self,stations=[]):
+        """
+        Parameters:
+        -----------
+        stations: list
+            list of Station objects
+        """
+        self.stations = stations
+
+    def __iter__(self):
+        return list(self.stations).__iter__()
+
+    def __nonzero__(self):
+        return bool(len(self.stations))
+
+    def __len__(self):
+        return len(self.stations)
+    
+    def __str__(self,extended=False) -> str:
+        msg = f"Stations ({self.__len__()} stations)\n"
+        msg += "-"*len(msg) 
+
+        submsgs = []
+        for i,station in enumerate(self.__iter__(),1):
+            submsg = f"{i}. "+station.__str__(extended=extended)
+            submsgs.append(submsg)
+                
+        if len(self.stations)<=20 or extended is True:
+            submsgs = "\n".join(submsgs)
+        else:
+            three_first_submsgs = submsgs[0:3]
+            last_two_subsgs = submsgs[-2:]
+            len_others = len(self.stations) -len(three_first_submsgs) - len(last_two_subsgs)
+            submsgs = "\n".join(three_first_submsgs+\
+                                [f"...{len_others} other catalogs..."]+\
+                                last_two_subsgs)
+
+        return msg+ "\n" +submsgs
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(stations=self.stations.__getitem__(index))
+        else:
+            return self.stations.__getitem__(index)
+
+    def __delitem__(self, index):
+        return self.stations.__delitem__(index)
+
+    def __getslice__(self, i, j, k=1):
+        return self.__class__(stations=self.stations[max(0, i):max(0, j):k])
+
+    def get_region(self,padding=[]):
+        """
+        It gets the region according to the limits of all stations as a whole
+
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
+        """
+        lons,lats = [],[]
+        for station in self.stations:
+            region = station.get_region()
+            lons.append(region[0:2])
+            lats.append(region[2:])
+        lons = [ x for sublist in lons for x in sublist]
+        lats = [ x for sublist in lats for x in sublist]
+        region = [min(lons),max(lons),min(lats),max(lats)]
+
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
+    
+    def append(self, stations):
+        """
+        append a stations
+        """
+        if isinstance(stations, Station):
+            self.stations.append(stations)
+        else:
+            msg = 'Append only supports a single Stations object as an argument.'
+            raise TypeError(msg)
+        return self
+
+    def remove(self,rowval):
+        """
+        remove rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        stations = []
+        for station in self.stations:
+            stations.append(station.remove(rowval))
+        self.stations = stations
+        return self
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)    
+
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the stations plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        stations = []
+        for station in self.stations:
+            stations.append(station.sort_values(**args))
+        self.stations = stations
+        return self
+
+    def filter_region(self,polygon):
+        """
+        Filter the region of the stations.
+
+        Parameters:
+        -----------
+        polygon: list of tuples
+            Each tuple is consider a point (lon,lat).
+            The first point must be equal to the last point in the polygon.
+        
+        """
+        stations = []
+        for station in self.stations:
+            stations.append(station.filter_region(polygon))
+        self.stations = stations
+        return self
+
+    def plot(self,fig=None):
+        """
+        Plot the stations.
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        """
+
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+
+        for station in self.stations:
+            station.plot(fig=fig)
+        return fig
 
 class Well():
     def __init__(self,data,name,
@@ -888,19 +1257,6 @@ class Cbar():
         self.label = label
         self.makecpt_kwargs = makecpt_kwargs
 
-
-
-
-class Stations():
-    def __init__(self,stations=[]):
-        """
-        Parameters:
-        -----------
-        stations: list
-            list of Catalog objects
-        """
-        self.catalogs = stations
-        
 
 class Wells():
     def __init__(self,wells=[],cbar = None):
