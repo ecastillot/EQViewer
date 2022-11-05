@@ -25,13 +25,16 @@ reg = [lonw , lone, lats, latn ]
 catalog = Catalog(data=events, 
                     color = "lightblue",
                     style="cc",
-                    size=lambda x: 0.11 * np.sqrt(1.5 ** (x*1.5)),
-                #     size=lambda x: 0.11 * np.sqrt(1.2 ** (x*1.4)),
+                    size=lambda x: 0.11 * np.sqrt(1.2 ** (x*1.4)),
                     # style="c0.1c",
                     # size=None,
                     apply_cbar = True,
                     pen = "black")
 cat1 = catalog.copy()
+fig = cat1.plot()
+fig.show()
+exit()
+
 # cat1 = cat1.filter_datetime(starttime=dt.datetime(2022,1,1))
 # cat2 = catalog.copy()
 # cat2.color = "gray"
@@ -119,11 +122,14 @@ cat1 = catalog.copy()
 # fig.show()
 # plt.show()
 
-# stations_path = "/home/emmanuel/EDCT/EQviewer/data/stations/castilla.csv"
-# station = pd.read_csv(stations_path)
-# station = Station(data = station,color="red")
-# # fig = station.plot()
-# # fig.show()
+stations_path = "/home/emmanuel/EDCT/EQviewer/data/stations/castilla.csv"
+station = pd.read_csv(stations_path)
+station = Station(data = station,color="red")
+station = station.remove_data({"station":["CA03"]})
+print(station.data)
+fig = station.plot()
+fig.show()
+exit()
 # sta1 = station.copy()
 # network = Network([station,sta1])
 # fig = network.plot()
@@ -164,8 +170,8 @@ all_data = gpd.read_file(tecto_shp)
 all_data_l = all_data[all_data["NombreEstr"] == "Falla de Jordan"]
 all_data_r = all_data[all_data["NombreEstr"] != "Falla de Jordan"]
 
-# df = all_data["geometry"].apply(lambda x: x.bounds)
-# df = pd.DataFrame(df.tolist(),columns=["min_x","min_y","max_x","max_y"])                                  
+df = all_data["geometry"].apply(lambda x: x.bounds)
+df = pd.DataFrame(df.tolist(),columns=["min_x","min_y","max_x","max_y"])                                  
 # print(df)
 # print(df)
 
@@ -177,12 +183,17 @@ shape_r = Shape(data=all_data_r,
         connection="rr",
         style="f1c/0.1c+r+t"
         )
-ss = Shapes([shape_r,shape_r])
-print(ss)
-print(ss.__str__(True))
-# print(ss.get_region())
-# fig = shape_r.plot()
+s = shape_r.copy()
+# print(s.data)
+s = s.select_data({"OBJECTID":[2]})
+s.pen = ["0.02c,red,-"]
+# print(s.__dict__)
+# fig = s.plot()
 # fig.show()
+# print(s.data)
+ss = Shapes([shape_r,s])
+fig = ss.plot()
+fig.show()
 # fig = shape_r.plot()
 # fig.show()
 # print(shape_r)

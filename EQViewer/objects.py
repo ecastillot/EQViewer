@@ -31,6 +31,15 @@ def args_cleaner(args,rm_args=[]):
 
     return info
 
+def update_args2(args1,args2):
+    """
+    keys in args1 will update to arg2
+    """
+    for key,value in args1.items():
+        if key in list(args2.keys()):
+            args2[key] = value
+    return args2
+
 class Catalog():
     def __init__(self,
             data,
@@ -41,7 +50,7 @@ class Catalog():
             label="data",
             transparency=0,
             pen=None,
-            **kwargs) -> None:
+            **plot_kwargs) -> None:
 
         """
         Parameters:
@@ -74,7 +83,7 @@ class Catalog():
             transparency of your plots
         pen : str or None
             color and size of the symbol border
-        kwargs: other pygmt.plot arguments
+        plot_kwargs: pygmt.plot arguments
         """
 
         
@@ -97,7 +106,7 @@ class Catalog():
         self.apply_cbar = apply_cbar
         self.transparency = transparency
         self.pen = pen
-        self.kwargs = kwargs
+        self.plot_kwargs = plot_kwargs
 
     @property
     def empty(self):
@@ -105,11 +114,12 @@ class Catalog():
 
     @property
     def info2pygmt(self):
-        rm_args = ["data","apply_cbar","kwargs","columns"]
+        rm_args = ["data","apply_cbar","plot_kwargs","columns"]
         args = self.__dict__.copy()
         args["size"] = self.size2plot
         args["cmap"] = self.apply_cbar
-        args.update(self.kwargs)
+        self.plot_kwargs = update_args2(args,self.plot_kwargs)
+        args.update(self.plot_kwargs)
         info_dict = args_cleaner(args,rm_args)
         return info_dict
 
@@ -171,15 +181,16 @@ class Catalog():
         rowval : dict
             key: 
                 column name
-            value: 
-                One or more values specified to remove
+            value: list
+                values specified to remove
         """
         if not isinstance(rowval,dict):
             raise Exception("rowval must be a dictionary")
         
-        self.data = self.data[~self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[~mask]
+        return self
     
     def select_data(self, rowval):
         """
@@ -190,15 +201,15 @@ class Catalog():
         rowval : dict
             key: 
                 column name
-            value: 
-                One or more values specified to select
+            value: list
+                values specified to select
         """
         if not isinstance(rowval,dict):
             raise Exception("rowval must be a dictionary")
-        
-        self.data = self.data[self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[mask]
+        return self
 
     def copy(self):
         """Deep copy of the class"""
@@ -798,15 +809,16 @@ class Station():
         rowval : dict
             key: 
                 column name
-            value: 
-                One or more values specified to remove
+            value: list
+                values specified to remove
         """
         if not isinstance(rowval,dict):
             raise Exception("rowval must be a dictionary")
         
-        self.data = self.data[~self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[~mask]
+        return self
 
     def select_data(self, rowval):
         """
@@ -817,15 +829,15 @@ class Station():
         rowval : dict
             key: 
                 column name
-            value: 
-                One or more values specified to select
+            value: list
+                values specified to select
         """
         if not isinstance(rowval,dict):
             raise Exception("rowval must be a dictionary")
-        
-        self.data = self.data[self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[mask]
+        return self
 
     def append(self, data):
         """
@@ -1127,6 +1139,7 @@ class Shape():
     @property
     def info2pygmt(self):
         args = self.__dict__.copy()
+        self.plot_kwargs = update_args2(args,self.plot_kwargs)
         args.update(self.plot_kwargs)
         args = args_cleaner(args,["projection","plot_kwargs"])
         return args.copy()
@@ -1189,44 +1202,6 @@ class Shape():
         """
         self.data.to_crs(projection)
 
-    def remove_data(self, rowval):
-        """
-        remove rows to the data.
-
-        Parameters:
-        -----------
-        rowval : dict
-            key: 
-                column name
-            value: 
-                One or more values specified to remove
-        """
-        if not isinstance(rowval,dict):
-            raise Exception("rowval must be a dictionary")
-        
-        self.data = self.data[~self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
-
-    def select_data(self, rowval):
-        """
-        select rows to the data.
-
-        Parameters:
-        -----------
-        rowval : dict
-            key: 
-                column name
-            value: 
-                One or more values specified to select
-        """
-        if not isinstance(rowval,dict):
-            raise Exception("rowval must be a dictionary")
-        
-        self.data = self.data[self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
-    
     def append(self, data):
         """
         append data
@@ -1260,15 +1235,16 @@ class Shape():
         rowval : dict
             key: 
                 column name
-            value: 
-                One or more values specified to remove
+            value: list
+                values specified to remove
         """
         if not isinstance(rowval,dict):
             raise Exception("rowval must be a dictionary")
         
-        self.data = self.data[~self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[~mask]
+        return self
     
     def select_data(self, rowval):
         """
@@ -1279,15 +1255,15 @@ class Shape():
         rowval : dict
             key: 
                 column name
-            value: 
-                One or more values specified to select
+            value: list
+                values specified to select
         """
         if not isinstance(rowval,dict):
             raise Exception("rowval must be a dictionary")
-        
-        self.data = self.data[self.data.isin(rowval)]
-        self.data.dropna(subset=list(rowval.keys()),inplace=True)
-        return self.data
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[mask]
+        return self
 
     def matplot(self,**args):
         """
@@ -1310,7 +1286,6 @@ class Shape():
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
-
         fig.plot(**self.info2pygmt)
         return fig
 
@@ -1475,25 +1450,25 @@ class Shapes():
         self.shapes = shapes
         return self
 
-    # def plot(self,fig=None):
-    #     """
-    #     Plot the stations.
+    def plot(self,fig=None):
+        """
+        Plot the stations.
 
-    #     Parameters:
-    #     -----------
-    #     fig: None or pygmt.Figure
-    #         Basemap figure
-    #     """
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        """
 
-    #     if fig == None:
-    #         fig = pygmt.Figure() 
-    #         fig.basemap(region=self.get_region(padding=0.1),
-    #                     projection="M12c", 
-    #                     frame=["afg","WNse"])
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
 
-    #     for station in self.stations:
-    #         station.plot(fig=fig)
-    #     return fig
+        for shape in self.shapes:
+            shape.plot(fig=fig)
+        return fig
 
 class Well():
     def __init__(self,data,name,
