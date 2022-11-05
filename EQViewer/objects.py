@@ -83,7 +83,8 @@ class Catalog():
 
         data = data.drop_duplicates(subset=self.columns,ignore_index=True)
         pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
-        self.data = data[self.columns]
+        # self.data = data[self.columns]
+        self.data = data
         if self.empty:
             raise Exception("No data in the catalog")
         self.size = size
@@ -225,6 +226,39 @@ class Catalog():
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
         return [lonw, lone, lats, latn]
 
+    def project(self,startpoint,endpoint,
+                width,verbose=True):
+        """
+        Project data onto a line
+
+        Parameters:
+        -----------
+        startpoint: tuple
+            (lon,lat)
+        endpoint: tuple
+            (lon,lat)
+        width: tuple
+            (w_left,w_right)
+        
+        """
+        data = self.data
+        data = data[["longitude","latitude","depth",
+                    "origin_time","magnitude"]]
+        projection = pygmt.project(
+                            data=data,
+                            unit=True,
+                            center=startpoint,
+                            endpoint=endpoint,
+                            convention="pz",
+                            width=width,
+                            verbose=verbose
+                                )
+        projection = projection.rename(columns={0:"distance",
+                                1:"depth",
+                                2:"origin_time",
+                                3:"magnitude"})
+        return projection
+
     def plot(self,fig=None,
             cbar=None,
             show_cbar=True):
@@ -267,6 +301,7 @@ class Catalog():
                 cmap=True,
                 style=self.style,
                 pen=self.pen,
+                **self.kwargs
                 )
             if show_cbar:
                 fig.colorbar(frame=f'af+l"{cbar.label}"',
@@ -280,6 +315,7 @@ class Catalog():
                 color=self.color,
                 style=self.style,
                 pen=self.pen,
+                **self.kwargs
             )
 
         return fig
@@ -333,7 +369,7 @@ class Catalog():
         ax.set_ylabel("Latitude [°]")
         return ax
 
-class Catalogs():
+class Seismicity():
     def __init__(self,catalogs=[],cbar = None):
         """
         Parameters:
@@ -405,6 +441,15 @@ class Catalogs():
     def copy(self):
         """Deep copy of the class"""
         return copy.deepcopy(self)
+
+    def project(self,startpoint,endpoint,
+                width,verbose=True):
+        projections = []
+        for catalog in self.catalogs:
+            projection = catalog.project(startpoint,endpoint,
+                                            width,verbose)
+            projections.append(projection)
+        return projections
 
     def sort_values(self,**args):
         """
@@ -526,12 +571,13 @@ class Station():
                 label="stations",
                 transparency = 0,
                 style="i0.3c",
-                pen="black") -> None:
+                pen="black",
+                **kwargs) -> None:
 
         """
         data: DataFrame
             Dataframe with the next mandatory columns:
-            'network','station','latitude','longitude','elevation'
+            'station','latitude','longitude'
         name_in_map : bool
             Show the name of the station. 
         color: str or None
@@ -551,29 +597,71 @@ class Station():
         pen : str
             color and size of the symbol border
         """
-        columns = ['network','station','latitude','longitude','elevation']
-        cols = list(set(columns) & set(data.columns.to_list()))
-        if list(set(cols)) != list(set(columns)):
+        self.columns = ['station','latitude','longitude']
+        check =  all(item in data.columns.to_list() for item in self.columns)
+        if not check:
             raise Exception("There is not the mandatory columns for the data in Station object."\
-                            +"->'network','station','latitude','longitude','elevation'")
-        self.data = data[columns]
+                            +"->'station','latitude','longitude'")
+        # self.data = data[columns]
+        self.data = data
         self.name_in_map = name_in_map
         self.color = color
         self.label = label
         self.style = style
         self.pen = pen
         self.transparency = transparency
+        self.kwargs = kwargs
 
     @property
     def empty(self):
         return self.data.empty
+    
+    @property
+    def info2pygmt(self):
+        rm_args = ["name_in_map"]
+        info_dict = args_cleaner(self.__dict__.copy(),rm_args)
+        return info_dict
+
+    def get_region(self):
+        """
+        It gets the region according to the limits in the catalog
+        """
+        lonw,lone = self.data.longitude.min(),self.data.longitude.max()
+        lats,latn = self.data.latitude.min(),self.data.latitude.max()
+        return [lonw, lone, lats, latn]
 
     def __len__(self):
         return len(self.data)
 
-    def __str__(self) -> str:
+    def __str__(self,extended=False) -> str:
         msg = f"Station | {self.__len__()} stations"
+        if extended:
+            region = list(map(lambda x: round(x,2),self.get_region()))
+            msg += f"\n\tregion: {region}"
+        else:
+            pass
         return msg
+
+    def append(self, data):
+        """
+        append data
+        """
+        if isinstance(data, pd.DataFrame):
+
+            check =  all(item in data.columns.to_list() for item in self.columns)
+            if not check:
+                raise Exception("There is not the mandatory columns for the data in Catalog object."\
+                                +"->'origin_time','latitude','longitude','depth','magnitude'")
+
+            data = data.drop_duplicates(subset=self.columns,ignore_index=True)
+            pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
+            data = data[self.columns]
+
+            self.data = pd.concat([self.data,data])
+        else:
+            msg = 'Append only supports a single Dataframe object as an argument.'
+            raise TypeError(msg)
+        return self
 
     def matplot(self,ax=None):
         if ax == None:

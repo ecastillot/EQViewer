@@ -30,46 +30,53 @@ catalog = Catalog(data=events,
                     # size=None,
                     apply_cbar = True,
                     pen = None)
-cat1 = catalog.copy()
 
+cat1 = catalog.filter_datetime(starttime=dt.datetime(2022,1,1))
+x = cat1.project((-80,10),(-70,10),(-501,501),verbose=False)
 
-filter_domain=[-76,-75,5,6]
-polygon = [(filter_domain[0],filter_domain[2]),
-                (filter_domain[0],filter_domain[3]),
-                (filter_domain[1],filter_domain[3]),
-                (filter_domain[1],filter_domain[2]),
-                (filter_domain[0],filter_domain[2])
-                ]
+print(cat1)
+
+seismicity = Seismicity([cat1,cat1])
+x = seismicity.project((-80,10),(-70,10),(-501,501),verbose=False)
+
+# filter_domain=[-76,-75,5,6]
+# polygon = [(filter_domain[0],filter_domain[2]),
+#                 (filter_domain[0],filter_domain[3]),
+#                 (filter_domain[1],filter_domain[3]),
+#                 (filter_domain[1],filter_domain[2]),
+#                 (filter_domain[0],filter_domain[2])
+#                 ]
 # cat1 = cat1.filter_region(polygon)
 # print(cat1)
 # print(cat1.__str__(True))
 # exit()
 # print(cat1.__str__(True))
 
-a = Catalog()
-a = a.sort_values(by="origin_time")
-print(a)
-# cat1.color = "gray"
-fig = a.plot()
-# # fig = a.plot()
-fig.show()
-# print(cat1)
-# cat1.append(cat1.data)
-# print(cat1)
-exit()
-fig = cat1.matplot()
-plt.show()
-cat1.apply_cbar = False
-cat2 = catalog.filter_datetime(starttime=dt.datetime(2022,1,1))    
-# fig = cat2.plot()
+# a = Catalog()
+# a = a.sort_values(by="origin_time")
+# print(a)
+# # cat1.color = "gray"
+# fig = a.plot()
+# # # fig = a.plot()
 # fig.show()
-catalogs = Catalogs([cat1,cat2])  
-
-catalogs = catalogs.sort_values(by="origin_time")
-catalogs = catalogs.filter_datetime(endtime=dt.datetime(2022,5,1))
-catalogs = catalogs.filter_region(polygon)
-for catalog in catalogs:
-        print(catalog.__str__(True))
+# # print(cat1)
+# # cat1.append(cat1.data)
+# # print(cat1)
+# exit()
+# fig = cat1.matplot()
+# plt.show()
+# cat1.apply_cbar = False
+# cat2 = catalog.filter_datetime(starttime=dt.datetime(2022,1,1))    
+# # fig = cat2.plot()
+# # fig.show()
+# catalogs = Catalogs([cat1,cat2])  
+# fig = catalogs.plot()
+# fig.show()
+# catalogs = catalogs.sort_values(by="origin_time")
+# catalogs = catalogs.filter_datetime(endtime=dt.datetime(2022,5,1))
+# catalogs = catalogs.filter_region(polygon)
+# for catalog in catalogs:
+#         print(catalog.__str__(True))
 
 
 
@@ -95,9 +102,10 @@ for catalog in catalogs:
 # fig.show()
 # plt.show()
 
-# stations_path = "/home/emmanuel/EDCT/EQviewer/data/stations/castilla.csv"
-# stations = pd.read_csv(stations_path)
-# stations = Station(data = stations)
+stations_path = "/home/emmanuel/EDCT/EQviewer/data/stations/castilla.csv"
+station = pd.read_csv(stations_path)
+station = Station(data = station)
+print(station.__str__(True))
 # stations.plot()
 # plt.show()
 # print(stations)
