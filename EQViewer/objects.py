@@ -10,6 +10,7 @@ import copy
 import types
 import pygmt
 import pandas as pd
+import geopandas as gpd
 import datetime as dt
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -104,16 +105,20 @@ class Catalog():
 
     @property
     def info2pygmt(self):
-        rm_args = ["apply_cbar"]
-        info_dict = args_cleaner(self.__dict__.copy(),rm_args)
+        rm_args = ["data","apply_cbar","kwargs","columns"]
+        args = self.__dict__.copy()
+        args["size"] = self.size2plot
+        args["cmap"] = self.apply_cbar
+        args.update(self.kwargs)
+        info_dict = args_cleaner(args,rm_args)
         return info_dict
 
     @property
     def size2plot(self):
-        if type(self.size) is types.LambdaType:
+        if self.size == None:
+            size = self.size
+        elif type(self.size) is types.LambdaType:
             size = self.data.magnitude.apply(self.size)
-        elif size == None:
-            size = size
         else:
             raise Exception("size parameter must be a lambda function")
         return size
@@ -157,7 +162,7 @@ class Catalog():
             raise TypeError(msg)
         return self
 
-    def remove(self, rowval):
+    def remove_data(self, rowval):
         """
         remove rows to the data.
 
@@ -173,6 +178,25 @@ class Catalog():
             raise Exception("rowval must be a dictionary")
         
         self.data = self.data[~self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
+    
+    def select_data(self, rowval):
+        """
+        select rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to select
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[self.data.isin(rowval)]
         self.data.dropna(subset=list(rowval.keys()),inplace=True)
         return self.data
 
@@ -325,6 +349,8 @@ class Catalog():
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
+        
+        info2pygmt = self.info2pygmt
         if self.apply_cbar:
             if cbar == None:
                 zmin = data.depth.min()
@@ -336,31 +362,17 @@ class Catalog():
                             reverse=True,
                             overrule_bg=True)
 
+            info2pygmt["color"] = data[cbar.color_target]
             pygmt.makecpt(**cbar.makecpt_kwargs)
-            fig.plot(
-                x=data.longitude,
-                y=data.latitude,
-                size=self.size2plot,
-                color=data[cbar.color_target],
-                cmap=True,
-                style=self.style,
-                pen=self.pen,
-                **self.kwargs
-                )
+            
             if show_cbar:
                 fig.colorbar(frame=f'af+l"{cbar.label}"',
                         position="JBC+e")
-        else:
-            fig.plot(
-                x=data.longitude,
-                y=data.latitude,
-                size=self.size2plot,
-                label=self.label,
-                color=self.color,
-                style=self.style,
-                pen=self.pen,
-                **self.kwargs
-            )
+        fig.plot(
+            x=data.longitude,
+            y=data.latitude,
+            **info2pygmt
+        )
 
         return fig
 
@@ -482,7 +494,7 @@ class Seismicity():
             raise TypeError(msg)
         return self
 
-    def remove(self,rowval):
+    def remove_data(self,rowval):
         """
         remove rows of each data.
 
@@ -494,10 +506,28 @@ class Seismicity():
             value: 
                 One or more values specified to remove
         """
-        stations = []
-        for station in self.stations:
-            stations.append(station.remove(rowval))
-        self.stations = stations
+        catalogs = []
+        for catalog in self.catalogs:
+            catalogs.append(catalog.remove_data(rowval))
+        self.catalogs = catalogs
+        return self
+
+    def select_data(self,rowval):
+        """
+        select rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to select
+        """
+        catalogs = []
+        for catalog in self.catalogs:
+            catalogs.append(catalog.select_data(rowval))
+        self.catalogs = catalogs
         return self
 
     def copy(self):
@@ -711,9 +741,12 @@ class Station():
     
     @property
     def info2pygmt(self):
-        rm_args = ["name_in_map"]
-        info_dict = args_cleaner(self.__dict__.copy(),rm_args)
-        return info_dict
+        rm_args = ["data","name_in_map","text_args",
+                    "plot_args","columns"]
+        args = self.__dict__.copy()
+        args.update(self.plot_args)
+        info_dict = args_cleaner(args,rm_args)
+        return info_dict.copy()
 
     def get_region(self,padding=[]):
         """
@@ -755,10 +788,8 @@ class Station():
         else:
             pass
         return msg
-    
 
-
-    def remove(self, rowval):
+    def remove_data(self, rowval):
         """
         remove rows to the data.
 
@@ -777,6 +808,24 @@ class Station():
         self.data.dropna(subset=list(rowval.keys()),inplace=True)
         return self.data
 
+    def select_data(self, rowval):
+        """
+        select rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to select
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
 
     def append(self, data):
         """
@@ -843,15 +892,10 @@ class Station():
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
-
         fig.plot(
                 x=data["longitude"],
                 y=data["latitude"],
-                color=self.color,
-                label=self.label,
-                style=self.style,
-                pen=self.pen,
-                **self.plot_args
+                **self.info2pygmt
             )
         if self.name_in_map:
             fig.text(x=data["longitude"], 
@@ -975,7 +1019,7 @@ class Network():
             raise TypeError(msg)
         return self
 
-    def remove(self,rowval):
+    def remove_data(self,rowval):
         """
         remove rows of each data.
 
@@ -989,7 +1033,25 @@ class Network():
         """
         stations = []
         for station in self.stations:
-            stations.append(station.remove(rowval))
+            stations.append(station.remove_data(rowval))
+        self.stations = stations
+        return self
+
+    def select_data(self,rowval):
+        """
+        select rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to select
+        """
+        stations = []
+        for station in self.stations:
+            stations.append(station.select_data(rowval))
         self.stations = stations
         return self
 
@@ -1044,6 +1106,301 @@ class Network():
         for station in self.stations:
             station.plot(fig=fig)
         return fig
+
+class Shape():
+    def __init__(self,data,projection,**plot_kwargs):
+        """
+        data: GeoDataFrame
+            Data of the shape file
+        projection: str
+            EPSG projection. Example 'EPSG:4326'
+        plot_kwargs: args from Pygmt.plot()
+        """
+        self.projection =  projection
+        self.data = data.to_crs(projection)
+        self.plot_kwargs = plot_kwargs
+
+    @property
+    def empty(self):
+        return self.data.empty
+
+    @property
+    def info2pygmt(self):
+        args = self.__dict__.copy()
+        args.update(self.plot_kwargs)
+        args = args_cleaner(args,["projection","plot_kwargs"])
+        return args.copy()
+
+    def __len__(self):
+        return len(self.data)
+
+    def __str__(self,extended=False) -> str:
+        msg = f"Shape | {self.__len__()} geometries"
+        if extended:
+            region = list(map(lambda x: round(x,2),self.get_region()))
+            msg += f"\n\tprojection: {self.data.geometry.crs}"
+            msg += f"\n\tregion: {region}"
+            for i,row in enumerate(self.data.geometry,1):
+                msg += f"\n\tgeometry type #{i}: {row.geom_type}"
+        else:
+            pass
+        return msg
+
+    def get_region(self,padding=[]):
+        """
+        It gets the region according to the limits in the shape
+        
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
+        """
+        data = self.data
+        df = data["geometry"].apply(lambda x: x.bounds)
+        data = pd.DataFrame(df.tolist(),columns=["min_x","min_y","max_x","max_y"])                                    
+
+        lonw,lone = data.min_x.min(),data.max_x.max()
+        lats,latn = data.min_y.min(),data.max_y.max()
+        
+        region = [lonw, lone, lats, latn]
+        
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
+
+    def to_crs(self,projection):
+        """
+        projection: str
+            EPSG projection. Example 'EPSG:4326'
+        """
+        self.data.to_crs(projection)
+
+    def remove_data(self, rowval):
+        """
+        remove rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[~self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
+
+    def select_data(self, rowval):
+        """
+        select rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to select
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
+    
+    def append(self, data):
+        """
+        append data
+        """
+        if isinstance(data, gpd.GeoDataFrame):
+            data = data.drop_duplicates(subset=self.columns,ignore_index=True)
+            self.data = pd.concat([self.data,data])
+        else:
+            msg = 'Append only supports a single GeoDataframe object as an argument.'
+            raise TypeError(msg)
+        return self
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the geometry plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        self.data = self.data.sort_values(**args)
+        return self
+
+    def remove_data(self, rowval):
+        """
+        remove rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[~self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
+    
+    def select_data(self, rowval):
+        """
+        select rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: 
+                One or more values specified to select
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        self.data = self.data[self.data.isin(rowval)]
+        self.data.dropna(subset=list(rowval.keys()),inplace=True)
+        return self.data
+
+    def matplot(self,**args):
+        """
+        args: See GeoDataFrame args.
+        """
+        self.data.plot(**args)
+
+    def plot(self,fig=None):
+        """
+        Plot the stations
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        """
+
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+
+        fig.plot(**self.info2pygmt)
+        return fig
+
+class Shapes():
+    def __init__(self,shapes=[]):
+        """
+        Parameters:
+        -----------
+        shapes: list
+            list of Shape objects
+        """
+        self.shapes = shapes
+    
+    def __iter__(self):
+        return list(self.shapes).__iter__()
+
+    def __nonzero__(self):
+        return bool(len(self.shapes))
+
+    def __len__(self):
+        return len(self.shapes)
+    
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(shapes=self.shapes.__getitem__(index))
+        else:
+            return self.shapes.__getitem__(index)
+
+    def __delitem__(self, index):
+        return self.shapes.__delitem__(index)
+
+    def __getslice__(self, i, j, k=1):
+        return self.__class__(shapes=self.shapes[max(0, i):max(0, j):k])
+    
+    def __str__(self,extended=False) -> str:
+        msg = f"Shapes ({self.__len__()} shapes)\n"
+        msg += "-"*len(msg) 
+
+        submsgs = []
+        for i,shape in enumerate(self.__iter__(),1):
+            submsg = f"{i}. "+shape.__str__(extended=extended)
+            submsgs.append(submsg)
+                
+        if len(self.shapes)<=20 or extended is True:
+            submsgs = "\n".join(submsgs)
+        else:
+            three_first_submsgs = submsgs[0:3]
+            last_two_subsgs = submsgs[-2:]
+            len_others = len(self.shapes) -len(three_first_submsgs) - len(last_two_subsgs)
+            submsgs = "\n".join(three_first_submsgs+\
+                                [f"...{len_others} other catalogs..."]+\
+                                last_two_subsgs)
+
+        return msg+ "\n" +submsgs
+
+    def get_region(self,padding=[]):
+        """
+        It gets the region according to the limits of all shapes as a whole
+
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
+        """
+        lons,lats = [],[]
+        for shape in self.shapes:
+            region = shape.get_region()
+            lons.append(region[0:2])
+            lats.append(region[2:])
+        lons = [ x for sublist in lons for x in sublist]
+        lats = [ x for sublist in lats for x in sublist]
+        region = [min(lons),max(lons),min(lats),max(lats)]
+
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
 
 class Well():
     def __init__(self,data,name,
@@ -1104,14 +1461,6 @@ class Well():
         ax.plot3D(self.data.longitude, self.data.latitude,
                     self.data.z, 'gray')
         ax.invert_zaxis()
-    #     ax.set_aspect("equal")
-    #     cb = ax.scatter(self.data.longitude, self.data.latitude,
-    #             c=self.data[color_target], s=8, cmap="viridis")
-    #     cbar = fig.colorbar(cb)
-    #     cbar.ax.set_ylim(cbar.ax.get_ylim()[::-1])
-    #     cbar.set_label(f"{color_target}")
-
-    #     return ax
 
 class FocalMechanism():
     def __init__(self,data,
@@ -1176,29 +1525,6 @@ class FocalMechanism():
                 +f"| end:{self.data.origin_time.max()}"
         return msg
 
-class Shape():
-    def __init__(self,data,**plot_kwargs):
-        """
-        data: GeoDataFrame
-
-        plot_kwargs: args from Pygmt.plot()
-        """
-        self.data = data
-        plot_kwargs.pop("data",None)
-        self.plot_kwargs = plot_kwargs
-        l = plot_kwargs
-        super().__init__(**l)
-
-    @property
-    def empty(self):
-        return self.data.empty
-
-    def matplot(self,**args):
-        """
-        args: See GeoDataFrame args.
-        """
-        self.data.plot(**args)
-
 class Profile():
     def __init__(self,
         name, coords, width, 
@@ -1239,8 +1565,6 @@ class Profile():
         self.grid=grid
         self.legend = legend
 
-        
-
 class Cbar():
    def __init__(self,color_target,label,**makecpt_kwargs):
         """
@@ -1257,7 +1581,6 @@ class Cbar():
         self.label = label
         self.makecpt_kwargs = makecpt_kwargs
 
-
 class Wells():
     def __init__(self,wells=[],cbar = None):
         """
@@ -1271,7 +1594,6 @@ class Wells():
         self.wells = wells
         self.cbar = cbar
         
-
 class FocalMechanisms():
     def __init__(self,fms=[],cbar = None):
         """
@@ -1285,18 +1607,6 @@ class FocalMechanisms():
         self.fms = fms
         self.cbar = cbar
         
-
-class Shapes():
-    def __init__(self,shapes=[]):
-        """
-        Parameters:
-        -----------
-        shapes: list
-            list of Shape objects
-        """
-        self.shapes = shapes
-        
-
 class Profiles():
     def __init__(self,profiles=[]):
         """
