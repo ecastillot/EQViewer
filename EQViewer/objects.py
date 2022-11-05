@@ -1402,6 +1402,99 @@ class Shapes():
 
         return region
 
+    def append(self, shapes):
+        """
+        append a shapes
+        """
+        if isinstance(shapes, Shape):
+            self.shapes.append(shapes)
+        else:
+            msg = 'Append only supports a single Shape object as an argument.'
+            raise TypeError(msg)
+        return self
+    
+    def to_crs(self,projection):
+        """
+        projection: str
+            EPSG projection. Example 'EPSG:4326'
+        """
+        shapes = []
+        for shape in self.shapes:
+            shapes.append(shape.to_crs(projection))
+        self.shapes = shapes
+        return self
+
+    def remove_data(self,rowval):
+        """
+        remove rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        shapes = []
+        for shape in self.shapes:
+            shapes.append(shape.remove_data(rowval))
+        self.shapes = shapes
+        return self
+
+    def select_data(self,rowval):
+        """
+        select rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to select
+        """
+        shapes = []
+        for shape in self.shapes:
+            shapes.append(shape.select_data(rowval))
+        self.shapes = shapes
+        return self
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)  
+    
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the shapes plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        shapes = []
+        for shape in self.shapes:
+            shapes.append(shape.sort_values(**args))
+        self.shapes = shapes
+        return self
+
+    # def plot(self,fig=None):
+    #     """
+    #     Plot the stations.
+
+    #     Parameters:
+    #     -----------
+    #     fig: None or pygmt.Figure
+    #         Basemap figure
+    #     """
+
+    #     if fig == None:
+    #         fig = pygmt.Figure() 
+    #         fig.basemap(region=self.get_region(padding=0.1),
+    #                     projection="M12c", 
+    #                     frame=["afg","WNse"])
+
+    #     for station in self.stations:
+    #         station.plot(fig=fig)
+    #     return fig
+
 class Well():
     def __init__(self,data,name,
                 color="blue",
