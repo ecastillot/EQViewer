@@ -40,6 +40,22 @@ def update_args2(args1,args2):
             args2[key] = value
     return args2
 
+class Cbar():
+   def __init__(self,color_target,label,**makecpt_kwargs):
+        """
+        Parameters:
+        -----------
+        color_target: "str"
+            Target name to apply the colorbar.
+        label: "str"
+            Label to show in the colorbar legend
+        makecpt_kwargs:
+            Args from pygmt.makecpt
+        """
+        self.color_target = color_target
+        self.label = label
+        self.makecpt_kwargs = makecpt_kwargs
+
 class Catalog():
     def __init__(self,
             data,
@@ -436,7 +452,7 @@ class Catalog():
         ax.set_ylabel("Latitude [°]")
         return ax
 
-class Seismicity():
+class Catalogs():
     def __init__(self,catalogs=[],cbar = None):
         """
         Parameters:
@@ -932,7 +948,7 @@ class Station():
         ax.set_ylabel("Latitude [°]")
         return ax
 
-class Network():
+class Stations():
     def __init__(self,stations=[]):
         """
         Parameters:
@@ -1470,6 +1486,69 @@ class Shapes():
             shape.plot(fig=fig)
         return fig
 
+
+
+class FocalMechanism():
+    def __init__(self,data,
+                text_in_map=True,
+                color="red",
+                apply_cbar=False,
+                scale=1,
+                ):
+        """
+        Parameters:
+        -----------
+        data: pd.DataFrame 
+            Dataframe with the next mandatory columns:
+            'origin_time','latitude','longitude','depth','magnitude',
+            'strike','dip','rake'.
+            Optionals:
+                'event_name' to write text in each beachball
+                'plot_latitude','plot_longitude' at which to place beachball
+        color: str or None
+            Color from pygmt color gallery. 
+            It is not considered when cbar=True
+        apply_cbar: bool
+            Use Colorbar (the specifications of the colorbar are located in FocalMechanisms object).
+        scale: float
+            default:  1cm -> M5
+            Adjusts the scaling of the radius of the beachball, 
+            which is proportional to the magnitude. 
+            Scale defines the size for magnitude = 5.
+        """
+
+        self.columns = ['origin_time','latitude','longitude',
+                        'depth','magnitude',
+                        'strike','dip','rake']
+        check =  all(item in data.columns.to_list() for item in self.columns)
+        if not check:
+            raise Exception("There is not the mandatory columns for the data in Catalog object."\
+                            +"->'origin_time','latitude','longitude','depth','magnitude'")
+
+        data = data.drop_duplicates(subset=self.columns,ignore_index=True)
+        data["origin_time"] = pd.to_datetime(data["origin_time"]).dt.tz_localize(None)
+
+        self.data = data
+        self.text_in_map = text_in_map
+        self.color = color
+        self.apply_cbar = apply_cbar
+        self.scale = scale
+
+        
+
+    @property
+    def empty(self):
+        return self.data.empty
+
+    def __len__(self):
+        return len(self.data)
+
+    def __str__(self) -> str:
+        msg = f"FM | {self.__len__()} events "\
+                +f"| start:{self.data.origin_time.min()} "\
+                +f"| end:{self.data.origin_time.max()}"
+        return msg
+
 class Well():
     def __init__(self,data,name,
                 color="blue",
@@ -1530,69 +1609,6 @@ class Well():
                     self.data.z, 'gray')
         ax.invert_zaxis()
 
-class FocalMechanism():
-    def __init__(self,data,
-                color="red",
-                apply_cbar=False,
-                scale_for_m5=1,
-                main_n=2,
-                ):
-        """
-        Parameters:
-        -----------
-        data: pd.DataFrame 
-            Dataframe with the next mandatory columns:
-            'origin_time','latitude','longitude','depth','magnitude',
-            'strike_n1','dip_n1','rake_n1',
-           'strike_n2','dip_n2','rake_n2'.
-        color: str or None
-            Color from pygmt color gallery. 
-            It is not considered when cbar=True
-        apply_cbar: bool
-            Use Colorbar (the specifications of the colorbar are located in FocalMechanisms object).
-        scale_for_m5: float
-            default: M5 -> 1cm
-            Adjusts the scaling of the radius of the beachball, 
-            which is proportional to the magnitude. 
-            Scale defines the size for magnitude = 5.
-        main_n: int
-            Could be 1 or 2 depending on the nodal plane.
-        """
-
-        columns = ['origin_time','latitude','longitude','depth','magnitude',
-                        'strike_n1','dip_n1','rake_n1',
-                    'strike_n2','dip_n2','rake_n2']
-        cols = list(set(columns) & set(data.columns.to_list()))
-        if list(set(cols)) != list(set(columns)):
-            raise Exception("There is not the mandatory columns for the data in Catalog object."\
-                            +"->'origin_time','latitude','longitude','depth','magnitude',"\
-                            +"'strike_n1','dip_n1','rake_n1,'"\
-                            +"'strike_n2','dip_n2','rake_n2'")
-        data = data.drop_duplicates(subset=columns,ignore_index=True)
-        data["origin_time"] = pd.to_datetime(data["origin_time"]).dt.tz_localize(None)
-        self.data = data[columns]
-
-        self.data = data
-        self.color = color
-        self.apply_cbar = apply_cbar
-        self.scale_for_m5 = scale_for_m5
-        self.main_n = main_n
-
-        
-
-    @property
-    def empty(self):
-        return self.data.empty
-
-    def __len__(self):
-        return len(self.data)
-
-    def __str__(self) -> str:
-        msg = f"FM | {self.__len__()} events "\
-                +f"| start:{self.data.origin_time.min()} "\
-                +f"| end:{self.data.origin_time.max()}"
-        return msg
-
 class Profile():
     def __init__(self,
         name, coords, width, 
@@ -1632,22 +1648,6 @@ class Profile():
         self.apply_cbar = apply_cbar
         self.grid=grid
         self.legend = legend
-
-class Cbar():
-   def __init__(self,color_target,label,**makecpt_kwargs):
-        """
-        Parameters:
-        -----------
-        color_target: "str"
-            Target name to apply the colorbar.
-        label: "str"
-            Label to show in the colorbar legend
-        makecpt_kwargs:
-            Args from pygmt.makecpt
-        """
-        self.color_target = color_target
-        self.label = label
-        self.makecpt_kwargs = makecpt_kwargs
 
 class Wells():
     def __init__(self,wells=[],cbar = None):
