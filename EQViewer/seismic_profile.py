@@ -112,7 +112,7 @@ def map(region,
 
 
             if cmap:
-                cmap_args = cmap_args.to_dict()
+                # cmap_args = cmap_args.to_dict()
                 color = data[cmap_args["color_target"]]
                 cmap_label = cmap_args["label"]
                 _cmap_args = cmap_args.copy() 

@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import string
 from obspy.geodetics.base import gps2dist_azimuth
-# from .objects import Profile
+from .objects import Profile
 
 def inside_the_polygon(p,pol_points):
     """

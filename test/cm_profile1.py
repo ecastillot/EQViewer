@@ -1,6 +1,6 @@
 import sys
 import os
-repository_path = r"/home/emmanuel/EDCT/EQviewer"  ##change this path where is located the main directory
+repository_path = r"/home/emmanuel/EQviewer"  ##change this path where is located the main directory
 rep_data = os.path.join(repository_path,"data")
 rep_out = os.path.join(repository_path,"example")
 sys.path.insert(0,repository_path)
@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import geopandas as gpd
-from EQViewer import Catalog,Station,Shape,Profile
+from EQViewer.objects import Catalog,Station,Shape,Profile
 from EQViewer import seismic_profile,xy_seismic_profile,utils
 import EQViewer.utils as equt
 
@@ -136,8 +136,7 @@ prof_fig = seismic_profile.profile_plots(region=reg,
                 profiles= profiles,
                 depth=[0,200],
                 subsize = ("14c", "14c"),
-                depth_unit="km",
-                save=True)
+                depth_unit="km")
 prof_fig.show()
 outpath = os.path.join(rep_out,"col_prof.pdf")
 prof_fig.savefig(outpath,dpi=300)
