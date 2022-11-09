@@ -2060,7 +2060,7 @@ class Well():
             msg = f"Well | {self.__len__()} points in the trajectory"
             return msg
 
-    def plot(self,ax=None):
+    def matplot(self,ax=None):
         if ax == None:
             fig = plt.figure()
             ax = plt.axes(projection='3d')
