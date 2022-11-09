@@ -7,7 +7,7 @@
 
 ## conda
 ```bash
-conda create --name eqviewer python=3.10 --channel conda-forge pygmt geopandas obspy
+conda create --name eqviewer --channel=conda-forge pygmt geopandas obspy python=3.10
 conda activate eqviewer
 ```
 

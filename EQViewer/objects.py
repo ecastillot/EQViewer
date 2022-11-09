@@ -31,7 +31,7 @@ def args_cleaner(args,rm_args=[]):
 
     return info
 
-def update_args2(args1,args2):
+def update_kwargs(args1,args2):
     """
     keys in args1 will update to arg2
     """
@@ -40,7 +40,73 @@ def update_args2(args1,args2):
             args2[key] = value
     return args2
 
-class Cbar():
+# class BaseText():
+
+class BasePlot():
+    def __init__(self,
+            size=None,
+            style="c0.2c",
+            cmap=False,
+            color="lightblue",
+            label="data",
+            transparency=0,
+            pen=None,
+            **plot_kwargs) -> None:
+        """
+        Parameters:
+        -----------
+        size: None or lambda function
+            Equation for the size. 
+            lambda x: 0.1 * np.sqrt(1.5 ** (x.magnitude*1.5))
+            in this case size is assigned to the magnitude.
+            
+            If size is defined as lambda function,
+            you must use 'style':"cc"
+        style: str
+            style of you data. 
+            First letter assing the symbol.
+            Second letter assign the measure distance
+            If there is a number between the letter, means the
+            size for every point.
+            
+            For instance, use c0.2c circle,0.2 centimeters for all data
+            use cc, for circle and centimeters (this time size must be specified)
+        cmap: bool
+            Use Colorbar (the specifications of the colorbar always are located in '.plot' functions). 
+        color: str or None
+            Color from pygmt color gallery. 
+            It is not considered when cmap=True
+        transparency: float
+            transparency of your plots
+        pen : str or None
+            color and size of the symbol border
+        plot_kwargs: other pygmt.plot arguments
+        """
+        self.size = size
+        self.color = color
+        self.label = label
+        self.style = style
+        self.cmap = cmap
+        self.transparency = transparency
+        self.pen = pen
+        self.plot_kwargs = plot_kwargs
+
+    def get_info2pygmt(self,data=pd.DataFrame):
+        rm_args = ["plot_kwargs"]
+        args = self.__dict__.copy()
+        
+        if type(self.size) is types.LambdaType:
+            if not data.empty:
+                args["size"] = data.apply(args["size"],axis=1)
+            else:
+                raise Exception("No data to apply size")
+
+        kwargs = update_kwargs(args,self.plot_kwargs)
+        args.update(kwargs)
+        args = args_cleaner(args,rm_args)
+        return args
+
+class CPT():
    def __init__(self,color_target,label,**makecpt_kwargs):
         """
         Parameters:
@@ -59,14 +125,7 @@ class Cbar():
 class Catalog():
     def __init__(self,
             data,
-            size=None,
-            style="c0.2c",
-            apply_cbar=False,
-            color="lightblue",
-            label="data",
-            transparency=0,
-            pen=None,
-            **plot_kwargs) -> None:
+            baseplot = BasePlot()) -> None:
 
         """
         Parameters:
@@ -74,35 +133,9 @@ class Catalog():
         data: pd.DataFrame 
             Dataframe with the next mandatory columns:
             'origin_time','latitude','longitude','depth','magnitude'
-        size: None or lambda function
-            Equation for the size. 
-            lambda x: 0.1 * np.sqrt(1.5 ** (x*1.5))
-            where x always is assigned to the magnitude.
-            
-            If size is defined as lambda function,
-            you must use 'style':"cc"
-        style: str
-            style of you data. 
-            First letter assing the symbol.
-            Second letter assign the measure distance
-            If there is a number between the letter, means the
-            size for every point.
-            
-            For instance, use c0.2c circle,0.2 centimeters for all data
-            use cc, for circle and centimeters (this time size must be specified)
-        apply_cbar: bool
-            Use Colorbar (the specifications of the colorbar are located in Catalogs object). 
-        color: str or None
-            Color from pygmt color gallery. 
-            It is not considered when apply_cbar=True
-        transparency: float
-            transparency of your plots
-        pen : str or None
-            color and size of the symbol border
-        plot_kwargs: pygmt.plot arguments
+        baseplot: BasePlot
+            Control plot args
         """
-
-        
         self.columns = ['origin_time','latitude','longitude','depth','magnitude']
         check =  all(item in data.columns.to_list() for item in self.columns)
         if not check:
@@ -115,39 +148,12 @@ class Catalog():
         self.data = data
         if self.empty:
             raise Exception("No data in the catalog")
-        self.size = size
-        self.color = color
-        self.label = label
-        self.style = style
-        self.apply_cbar = apply_cbar
-        self.transparency = transparency
-        self.pen = pen
-        self.plot_kwargs = plot_kwargs
+
+        self.baseplot = baseplot
 
     @property
     def empty(self):
         return self.data.empty
-
-    @property
-    def info2pygmt(self):
-        rm_args = ["data","apply_cbar","plot_kwargs","columns"]
-        args = self.__dict__.copy()
-        args["size"] = self.size2plot
-        args["cmap"] = self.apply_cbar
-        self.plot_kwargs = update_args2(args,self.plot_kwargs)
-        args.update(self.plot_kwargs)
-        info_dict = args_cleaner(args,rm_args)
-        return info_dict
-
-    @property
-    def size2plot(self):
-        if self.size == None:
-            size = self.size
-        elif type(self.size) is types.LambdaType:
-            size = self.data.magnitude.apply(self.size)
-        else:
-            raise Exception("size parameter must be a lambda function")
-        return size
 
     def __len__(self):
         return len(self.data)
@@ -355,8 +361,8 @@ class Catalog():
         return projection
 
     def plot(self,fig=None,
-            cbar=None,
-            show_cbar=True):
+            cpt=None,
+            show_cpt=True):
         """
         Plot the catalog.
 
@@ -364,10 +370,10 @@ class Catalog():
         -----------
         fig: None or pygmt.Figure
             Basemap figure
-        cbar: None or Cbar
-            Colorbar applied to the catalog
-        show_cbar: bool
-            Show the colorbar
+        cpt: None or CPT
+            color palette table applied to the catalog
+        show_cpt: bool
+            Show the color palette table
         """
         data = self.data
 
@@ -377,23 +383,23 @@ class Catalog():
                         projection="M12c", 
                         frame=["afg","WNse"])
         
-        info2pygmt = self.info2pygmt
-        if self.apply_cbar:
-            if cbar == None:
+        info2pygmt = self.baseplot.get_info2pygmt(data)
+        if self.baseplot.cmap:
+            if cpt == None:
                 zmin = data.depth.min()
                 zmax = data.depth.max()
-                cbar = Cbar(color_target="depth",
+                cpt = CPT(color_target="depth",
                             label="depth",
                             cmap="rainbow",
                             series=[zmin,zmax],
                             reverse=True,
                             overrule_bg=True)
 
-            info2pygmt["color"] = data[cbar.color_target]
-            pygmt.makecpt(**cbar.makecpt_kwargs)
+            info2pygmt["color"] = data[cpt.color_target]
+            pygmt.makecpt(**cpt.makecpt_kwargs)
             
-            if show_cbar:
-                fig.colorbar(frame=f'af+l"{cbar.label}"',
+            if show_cpt:
+                fig.colorbar(frame=f'af+l"{cpt.label}"',
                         position="JBC+e")
         fig.plot(
             x=data.longitude,
@@ -404,7 +410,7 @@ class Catalog():
         return fig
 
     def matplot(self,color_target="depth",
-            s=8,cbar="viridis",show_cbar=True,
+            s=8,cpt="viridis",show_cpt=True,
             ax=None):
         """
         Quickly matplotlib figure
@@ -414,10 +420,10 @@ class Catalog():
             target to apply cbar
         s: float
             marker size
-        cbar: str
+        cpt: str
             Name of the colorbar
-        show_cbar: bool
-            Show colorbar.
+        show_cpt: bool
+            Show color palette table.
         ax: axis
             existent axis
         """
@@ -430,41 +436,42 @@ class Catalog():
 
         if color_target == "origin_time":
             cb = ax.scatter(self.data.longitude, self.data.latitude,
-                    c=mdates.date2num(self.data[color_target]), s=s, cmap=cbar)
+                    c=mdates.date2num(self.data[color_target]), s=s, cmap=cpt)
             
-            if show_cbar:
-                cbar = fig.colorbar(cb)
-                cbar.ax.set_ylim(cbar.ax.get_ylim()[::-1])
-                cbar.set_label(f"{color_target}")
+            if show_cpt:
+                cpt = fig.colorbar(cb)
+                cpt.ax.set_ylim(cpt.ax.get_ylim()[::-1])
+                cpt.set_label(f"{color_target}")
                 
                 loc = mdates.AutoDateLocator()
-                cbar.ax.yaxis.set_major_locator(loc)
-                cbar.ax.yaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+                cpt.ax.yaxis.set_major_locator(loc)
+                cpt.ax.yaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
         else:
             cb = ax.scatter(self.data.longitude, self.data.latitude,
-                    c=self.data[color_target], s=s, cmap=cbar)
-            if show_cbar:
-                cbar = fig.colorbar(cb)
-                cbar.ax.set_ylim(cbar.ax.get_ylim()[::-1])
-                cbar.set_label(f"{color_target}")
+                    c=self.data[color_target], s=s, cmap=cpt)
+            if show_cpt:
+                cpt = fig.colorbar(cb)
+                cpt.ax.set_ylim(cpt.ax.get_ylim()[::-1])
+                cpt.set_label(f"{color_target}")
 
         ax.set_xlabel("Longitude [°]")
         ax.set_ylabel("Latitude [°]")
         return ax
 
 class Catalogs():
-    def __init__(self,catalogs=[],cbar = None):
+    def __init__(self,catalogs=[],cpt=None,show_cpt=True):
         """
         Parameters:
         -----------
         catalogs: list
             list of Catalog objects
-        cbar: Cbar object
-            Colorbar applied.
+        cpt: None or CPT
+            color palette table applied to the catalog
         """
         self.catalogs = catalogs
-        self.cbar = cbar
-        
+        self.cpt = cpt
+        self.show_cpt = show_cpt
+
     def __iter__(self):
         return list(self.catalogs).__iter__()
 
@@ -652,8 +659,7 @@ class Catalogs():
 
         return region
 
-    def plot(self,fig=None,
-            cbar=None,show_cbar=None):
+    def plot(self,fig=None):
 
         """
         Plot the catalog.
@@ -662,10 +668,6 @@ class Catalogs():
         -----------
         fig: None or pygmt.Figure
             Basemap figure
-        cbar: None or Cbar
-            Colorbar applied to the catalog
-        show_cbar: bool
-            Show the colorbar
         """
 
         if fig == None:
@@ -673,34 +675,34 @@ class Catalogs():
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
-        if cbar == None:
+        if self.cpt == None:
             data = []
             for catalog in self.catalogs:
-                if catalog.apply_cbar:
+                if catalog.baseplot.cmap:
                     data.append(catalog.data)
             data = pd.concat(data)
             zmin = data.depth.min()
             zmax = data.depth.max()
-            cbar = Cbar(color_target="depth",
+            self.cpt = CPT(color_target="depth",
                         label="depth",
                         cmap="rainbow",
                         series=[zmin,zmax],
                         reverse=True,
                         overrule_bg=True)
 
-        show_catalog_cbar = []
+        show_catalog_cpt = []
         for catalog in self.catalogs:
-            if catalog.apply_cbar:
-                catalog.plot(fig=fig,cbar=cbar,show_cbar=False)
-                _show_cbar = True
+            if catalog.baseplot.cmap:
+                catalog.plot(fig=fig,cpt=self.cpt,show_cpt=False)
+                _show_cpt = True
             else:
-                catalog.plot(fig=fig,cbar=None,show_cbar=False)
-                _show_cbar = False
-            show_catalog_cbar.append(_show_cbar)
+                catalog.plot(fig=fig,cpt=None,show_cpt=False)
+                _show_cpt = False
+            show_catalog_cpt.append(_show_cpt)
 
-        if any(show_catalog_cbar):
-            if show_cbar:
-                fig.colorbar(frame=f'af+l"{cbar.label}"',
+        if any(show_catalog_cpt):
+            if self.show_cpt:
+                fig.colorbar(frame=f'af+l"{self.cpt.label}"',
                         position="JBC+e")
 
         return fig

@@ -3,7 +3,7 @@ import sys
 import os
 import numpy as np
 import datetime as dt
-repository_path = r"/home/emmanuel/EDCT/EQviewer"  ##change this path where is located the main directory
+repository_path = r"/home/emmanuel/EQviewer"  ##change this path where is located the main directory
 rep_data = os.path.join(repository_path,"data")
 rep_out = os.path.join(repository_path,"example")
 sys.path.insert(0,repository_path)
@@ -22,25 +22,30 @@ events = equt.transform_to_fmt_catalog(cat_csv,
         columns={"time_event":"origin_time"})
 reg = [lonw , lone, lats, latn ]
 
-catalog = Catalog(data=events, 
-                    color = "lightblue",
+baseplot = BasePlot(color = "lightblue",
                     style="cc",
-                    size=lambda x: 0.11 * np.sqrt(1.2 ** (x*1.4)),
-                    # style="c0.1c",
-                    # size=None,
-                    apply_cbar = True,
+                    size=lambda x: 0.11 * np.sqrt(1.2 ** (x.magnitude*1.4)),
+                #     style="c0.1c",
+                #     size=None,
+                    cmap = True,
                     pen = "black")
+catalog = Catalog(events,baseplot )
 cat1 = catalog.copy()
-fig = cat1.plot()
+cat1 = cat1.filter_datetime(starttime=dt.datetime(2022,1,1))
+cat2 = catalog.copy()
+baseplot = BasePlot(color = "gray",
+                    style="c0.1c",
+                    size=None,
+                    cmap = False,
+                    pen = "black")
+cat2.baseplot = baseplot
+cats = Catalogs([cat2,cat1])
+fig = cats.plot()
 fig.show()
+# cat1.matplot()
+# plt.show()
 exit()
 
-# cat1 = cat1.filter_datetime(starttime=dt.datetime(2022,1,1))
-# cat2 = catalog.copy()
-# cat2.color = "gray"
-# cat2.apply_cbar = False
-# cat2.size = None
-# cat2.style = "c0.2c"
 # print(cat2.info2pygmt)
 # fig = cat2.plot()
 # # fig.show()
@@ -49,7 +54,6 @@ exit()
 # # fig = cat1.plot()
 # # fig.show()
 
-# s = Seismicity([cat2,cat1])
 # fig = s.plot()
 # fig.show()
 # print(cat1.info2pygmt)
