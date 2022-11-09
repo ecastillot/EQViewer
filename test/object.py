@@ -8,43 +8,82 @@ rep_data = os.path.join(repository_path,"data")
 rep_out = os.path.join(repository_path,"example")
 sys.path.insert(0,repository_path)
 import geopandas as gpd
-from EQViewer.objects import *
+from EQViewer.new_objects import *
 import EQViewer.utils as equt
 import matplotlib.pyplot as plt
+
+import random
+
 lats = -5;latn = 15;lonw = -85;lone = -65 #castilla
 cat_csv = os.path.join(rep_data,"earthquakes","events_20160101T20220901_NLLOC_ok.csv")
 tecto_shp = os.path.join(rep_data,"shapes","Tectónica.shp")
 
 
-df = pd.read_csv(cat_csv)
-df = df.drop_duplicates(subset="id",ignore_index=True)
-events = equt.transform_to_fmt_catalog(cat_csv,
-        columns={"time_event":"origin_time"})
-reg = [lonw , lone, lats, latn ]
 
-baseplot = BasePlot(color = "lightblue",
-                    style="cc",
-                    size=lambda x: 0.11 * np.sqrt(1.2 ** (x.magnitude*1.4)),
-                #     style="c0.1c",
-                #     size=None,
-                    cmap = True,
-                    pen = "black")
-catalog = Catalog(events,baseplot )
-cat1 = catalog.copy()
-cat1 = cat1.filter_datetime(starttime=dt.datetime(2022,1,1))
-cat2 = catalog.copy()
-baseplot = BasePlot(color = "gray",
-                    style="c0.1c",
-                    size=None,
-                    cmap = False,
-                    pen = "black")
-cat2.baseplot = baseplot
-cats = Catalogs([cat2,cat1])
-fig = cats.plot()
+
+
+fm_csv = os.path.join(rep_data,"mf","MF_quifa_201301_202203.csv")
+events = pd.read_csv(fm_csv)
+events = events.rename(columns={"Origin time":"origin_time",
+                        "Latitude (deg)":"latitude",
+                        "Longitude (deg)":"longitude",
+                        "Depth (m)":"depth",
+                        "Mag. (Mw)":"magnitude",
+                        "Dip n1 (deg)":"dip",
+                        "Rake n1 (deg)":"rake",
+                        "Strike n1 (deg)":"strike",
+                        "Dip n2 (deg)":"dip_n2",
+                        "Rake n2 (deg)":"rake_n2",
+                        "Strike n2 (deg)":"strike_n2",
+                        }
+                        )
+events["depth"]= events["depth"]/1e3
+ev2 = events.copy()
+fm = FM(events,BaseMeca(cmap=False))
+region = fm.get_region()
+events["plot_longitude"] = pd.Series(np.random.uniform(region[0], region[1], size=len(events)))
+events["plot_latitude"] = pd.Series(np.random.uniform(region[2], region[3], size=len(events)))
+fm1 = FM(events,BaseMeca(cmap=True))
+# print(events)
+fm2 = FM(ev2.iloc[0:6],BaseMeca(cmap=False))
+fm = FMs([fm1,fm2])
+fig = fm.plot()
 fig.show()
+exit()
+
+
+
+
+
+# df = pd.read_csv(cat_csv)
+# df = df.drop_duplicates(subset="id",ignore_index=True)
+# events = equt.transform_to_fmt_catalog(cat_csv,
+#         columns={"time_event":"origin_time"})
+# reg = [lonw , lone, lats, latn ]
+
+# baseplot = BasePlot(color = "lightblue",
+#                     style="cc",
+#                     size=lambda x: 0.11 * np.sqrt(1.2 ** (x.magnitude*1.4)),
+#                 #     style="c0.1c",
+#                 #     size=None,
+#                     cmap = True,
+#                     pen = "black")
+# catalog = Catalog(events,baseplot )
+# cat1 = catalog.copy()
+# cat1 = cat1.filter_datetime(starttime=dt.datetime(2022,1,1))
+# cat2 = catalog.copy()
+# baseplot = BasePlot(color = "gray",
+#                     style="c0.1c",
+#                     size=None,
+#                     cmap = False,
+#                     pen = "black")
+# cat2.baseplot = baseplot
+# cats = Catalogs([cat2,cat1])
+# fig = cats.plot()
+# fig.show()
 # cat1.matplot()
 # plt.show()
-exit()
+# exit()
 
 # print(cat2.info2pygmt)
 # fig = cat2.plot()
@@ -126,14 +165,29 @@ exit()
 # fig.show()
 # plt.show()
 
-stations_path = "/home/emmanuel/EDCT/EQviewer/data/stations/castilla.csv"
-station = pd.read_csv(stations_path)
-station = Station(data = station,color="red")
-station = station.remove_data({"station":["CA03"]})
-print(station.data)
-fig = station.plot()
-fig.show()
-exit()
+# stations_path = "/home/emmanuel/EQviewer/data/stations/castilla.csv"
+# station = pd.read_csv(stations_path)
+# baseplot = BasePlot(color="black",
+#                 label="stations",
+#                 transparency = 0,
+#                 style="i0.3c",
+#                 pen="black")
+# basetext = BaseText(font="10p,Helvetica,black",
+#                     fill=None,
+#                     offset="-0.05c/0.15c")
+
+# station = Station(data = station)
+# sta2 = station.copy()
+# sta2.baseplot.color = "red"
+# print(station.baseplot.__dict__)
+# print(sta2.baseplot.__dict__)
+# station = station.remove_data({"station":["CA03"]})
+# stations = Stations([sta2,station])
+# fig = stations.plot()
+# fig.show()
+# # station.matplot()
+# # plt.show()
+# exit()
 # sta1 = station.copy()
 # network = Network([station,sta1])
 # fig = network.plot()
@@ -182,15 +236,11 @@ df = pd.DataFrame(df.tolist(),columns=["min_x","min_y","max_x","max_y"])
 # print(all_data[["min_x","min_y","max_x","max_y"]])
 # print(all_data_l.geometry.iloc[0].bounds)
 shape_r = Shape(data=all_data_r,
-        projection="EPSG:4326",
-        color="white", pen=["0.02c,black,-"],
-        connection="rr",
-        style="f1c/0.1c+r+t"
-        )
+        projection="EPSG:4326")
 s = shape_r.copy()
 # print(s.data)
 s = s.select_data({"OBJECTID":[2]})
-s.pen = ["0.02c,red,-"]
+s.baseplot.pen = ["0.02c,red,-"]
 # print(s.__dict__)
 # fig = s.plot()
 # fig.show()

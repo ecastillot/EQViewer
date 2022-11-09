@@ -8,6 +8,7 @@
 from operator import add
 import copy
 import types
+import os
 import pygmt
 import pandas as pd
 import geopandas as gpd
@@ -40,19 +41,47 @@ def update_kwargs(args1,args2):
             args2[key] = value
     return args2
 
+class BaseMeca():
+    def __init__(self,scale="1.0c",color="red",cmap=False,
+                transparency=None) -> None:
+        """
+        color: str or None
+            Color from pygmt color gallery. 
+            It is not considered when cbar=True
+        cmap: bool
+            Use Colorbar (the specifications of the colorbar are located in FocalMechanisms object).
+        scale: float
+            default:  1cm -> M5
+            Adjusts the scaling of the radius of the beachball, 
+            which is proportional to the magnitude. 
+            Scale defines the size for magnitude = 5.
+        """
+        self.scale = scale
+        self.color = color
+        self.cmap = cmap
+        self.transparency = transparency
+    
+    def get_info2pygmt(self):
+        args = self.__dict__.copy()
+        return args
 
-# fig.text(x=data["longitude"], 
-#                     y=data["latitude"], 
-#                     text=data["station"],
-#                     **self.text_args)
 class BaseText():
-    def __init__(self,) -> None:
-        pass
+    def __init__(self,**text_kwargs) -> None:
+        """
+        text_kwargs: pygmt.text arguments
+        """
+        self.text_kwargs = text_kwargs
+
+    def get_info2pygmt(self):
+        rm_args = ["text_kwargs"]
+        args = self.__dict__.copy()
+        args = args_cleaner(args,rm_args)
+        return args
 
 class BasePlot():
     def __init__(self,
             size=None,
-            style="c0.2c",
+            style=None,
             cmap=False,
             color="lightblue",
             label="data",
@@ -132,7 +161,14 @@ class CPT():
 class Catalog():
     def __init__(self,
             data,
-            baseplot = BasePlot()) -> None:
+            baseplot = BasePlot(size=None,
+                        style="c0.2c",
+                        cmap=False,
+                        color="lightblue",
+                        label="data",
+                        transparency=0,
+                        pen=None)
+            ) -> None:
 
         """
         Parameters:
@@ -716,43 +752,24 @@ class Catalogs():
     
 class Station():
     def __init__(self,data,
-                name_in_map=True,
-                color="black",
-                label="stations",
-                transparency = 0,
-                style="i0.3c",
-                pen="black",
-                plot_args={},
-                text_args={"font":"10p,Helvetica,black",
-                            "fill":None,
-                            "offset":"-0.05c/0.15c"}) -> None:
+                baseplot=BasePlot(color="black",
+                                label="stations",
+                                transparency = 0,
+                                style="i0.3c",
+                                pen="black"),
+                basetext = BaseText(font="10p,Helvetica,black",
+                                    fill=None,
+                                    offset="-0.05c/0.15c")
+                ) -> None:
 
         """
         data: DataFrame
             Dataframe with the next mandatory columns:
             'station','latitude','longitude'
-        name_in_map : bool
-            Show the name of the station. 
-        color: str or None
-            Color from pygmt color gallery. 
-        label: str
-            Label name of the stations data
-        transparency: float
-            transparency of your plots
-        style: str
-            style of you data. 
-            First letter assing the symbol.
-            Second letter assign the measure distance
-            If there is a number between the letter, means the
-            size for every point.
-            
-            For instance, use c0.2c circle,0.2 centimeters for all data
-        pen : str
-            color and size of the symbol border
-        plot_args: dict
-            Arguments of the pygmt.plot
-        plot_text: dict
-            Arguments of the pygmt.text
+        baseplot: None or BasePlot
+            Control plot args
+        basetext: None or BaseText
+            Control text args
         """
         self.columns = ['station','latitude','longitude']
         check =  all(item in data.columns.to_list() for item in self.columns)
@@ -761,29 +778,13 @@ class Station():
                             +"->'station','latitude','longitude'")
         # self.data = data[columns]
         self.data = data
-        self.name_in_map = name_in_map
-        self.color = color
-        self.label = label
-        self.style = style
-        self.pen = pen
-        self.transparency = transparency
-        self.plot_args = plot_args
-        self.text_args = text_args
-
+        self.baseplot = baseplot
+        self.basetext = basetext
 
     @property
     def empty(self):
         return self.data.empty
     
-    @property
-    def info2pygmt(self):
-        rm_args = ["data","name_in_map","text_args",
-                    "plot_args","columns"]
-        args = self.__dict__.copy()
-        args.update(self.plot_args)
-        info_dict = args_cleaner(args,rm_args)
-        return info_dict.copy()
-
     def get_region(self,padding=[]):
         """
         It gets the region according to the limits in the catalog
@@ -929,16 +930,19 @@ class Station():
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
+        
+        plot_info2pygmt = self.baseplot.get_info2pygmt()
         fig.plot(
                 x=data["longitude"],
                 y=data["latitude"],
-                **self.info2pygmt
+                **plot_info2pygmt
             )
-        if self.name_in_map:
+        if self.basetext != None:
+            text_info2pygmt = self.basetext.get_info2pygmt()
             fig.text(x=data["longitude"], 
                     y=data["latitude"], 
                     text=data["station"],
-                    **self.text_args)
+                    **text_info2pygmt)
         return fig
 
     def matplot(self,ax=None):
@@ -1145,29 +1149,25 @@ class Stations():
         return fig
 
 class Shape():
-    def __init__(self,data,projection,**plot_kwargs):
+    def __init__(self,data,projection,
+            baseplot=BasePlot(color=None, 
+                            pen=["0.02c,black,-"]
+                            )):
         """
         data: GeoDataFrame
             Data of the shape file
         projection: str
             EPSG projection. Example 'EPSG:4326'
-        plot_kwargs: args from Pygmt.plot()
+        baseplot: BasePlot
+            Control plot args
         """
         self.projection =  projection
         self.data = data.to_crs(projection)
-        self.plot_kwargs = plot_kwargs
+        self.baseplot = baseplot
 
     @property
     def empty(self):
         return self.data.empty
-
-    @property
-    def info2pygmt(self):
-        args = self.__dict__.copy()
-        self.plot_kwargs = update_args2(args,self.plot_kwargs)
-        args.update(self.plot_kwargs)
-        args = args_cleaner(args,["projection","plot_kwargs"])
-        return args.copy()
 
     def __len__(self):
         return len(self.data)
@@ -1311,7 +1311,9 @@ class Shape():
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
-        fig.plot(**self.info2pygmt)
+        
+        info2pygmt = self.baseplot.get_info2pygmt()
+        fig.plot(self.data,**info2pygmt)
         return fig
 
 class Shapes():
@@ -1495,14 +1497,9 @@ class Shapes():
             shape.plot(fig=fig)
         return fig
 
-
-
-class FocalMechanism():
+class FM():
     def __init__(self,data,
-                text_in_map=True,
-                color="red",
-                apply_cbar=False,
-                scale=1,
+                basemeca=BaseMeca(),
                 ):
         """
         Parameters:
@@ -1511,37 +1508,39 @@ class FocalMechanism():
             Dataframe with the next mandatory columns:
             'origin_time','latitude','longitude','depth','magnitude',
             'strike','dip','rake'.
+            WARNING: depth must be in km
             Optionals:
                 'event_name' to write text in each beachball
                 'plot_latitude','plot_longitude' at which to place beachball
-        color: str or None
-            Color from pygmt color gallery. 
-            It is not considered when cbar=True
-        apply_cbar: bool
-            Use Colorbar (the specifications of the colorbar are located in FocalMechanisms object).
-        scale: float
-            default:  1cm -> M5
-            Adjusts the scaling of the radius of the beachball, 
-            which is proportional to the magnitude. 
-            Scale defines the size for magnitude = 5.
+        
         """
 
-        self.columns = ['origin_time','latitude','longitude',
-                        'depth','magnitude',
-                        'strike','dip','rake']
+        self.columns = ['longitude','latitude',
+                        'depth',
+                        'strike','dip','rake','magnitude',
+                        ]
+        self.optional_columns1 = ['longitude','latitude',
+                        'depth',
+                        'strike','dip','rake','magnitude',
+                        'plot_longitude',
+                        'plot_latitude'
+                        ]
+        self.optional_columns2 = ['longitude','latitude',
+                        'depth',
+                        'strike','dip','rake','magnitude',
+                        'plot_longitude',
+                        'plot_latitude',
+                        'event_name']
         check =  all(item in data.columns.to_list() for item in self.columns)
         if not check:
             raise Exception("There is not the mandatory columns for the data in Catalog object."\
-                            +"->'origin_time','latitude','longitude','depth','magnitude'")
+                            +"->'latitude','longitude','depth','magnitude'")
 
         data = data.drop_duplicates(subset=self.columns,ignore_index=True)
         data["origin_time"] = pd.to_datetime(data["origin_time"]).dt.tz_localize(None)
 
         self.data = data
-        self.text_in_map = text_in_map
-        self.color = color
-        self.apply_cbar = apply_cbar
-        self.scale = scale
+        self.basemeca = basemeca
 
         
 
@@ -1552,11 +1551,463 @@ class FocalMechanism():
     def __len__(self):
         return len(self.data)
 
-    def __str__(self) -> str:
-        msg = f"FM | {self.__len__()} events "\
-                +f"| start:{self.data.origin_time.min()} "\
-                +f"| end:{self.data.origin_time.max()}"
+    def get_region(self,padding=[]):
+        """
+        It gets the region according to the limits in the catalog
+        
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
+        """
+        lonw,lone = self.data.longitude.min(),self.data.longitude.max()
+        lats,latn = self.data.latitude.min(),self.data.latitude.max()
+        
+        region = [lonw, lone, lats, latn]
+        
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
+
+    def __str__(self,extended=False) -> str:
+        if extended:
+            region = list(map(lambda x: round(x,2),self.get_region()))
+            msg = f"Catalog | {self.__len__()} focal mechanisms "\
+                    +f"\n\tdepth : {[round(self.data.depth.min(),2),round(self.data.depth.max(),2)]}"\
+                    +f"\n\tmagnitude : {[round(self.data.magnitude.min(),2),round(self.data.magnitude.max(),2)]}"\
+                    +f"\n\tregion: {region}"
+        else:
+            msg = f"Catalog | {self.__len__()} focal mechanisms "
+
         return msg
+
+    def append(self, data):
+        """
+        append data
+        """
+        if isinstance(data, pd.DataFrame):
+
+            check =  all(item in data.columns.to_list() for item in self.columns)
+            if not check:
+                raise Exception("There is not the mandatory columns for the data in Catalog object."\
+                                +"->'origin_time','latitude','longitude','depth','magnitude'")
+
+            data = data.drop_duplicates(subset=self.columns,ignore_index=True)
+            pd.to_datetime(data.loc[:,"origin_time"]).dt.tz_localize(None)
+
+            self.data = pd.concat([self.data,data])
+        else:
+            msg = 'Append only supports a single Dataframe object as an argument.'
+            raise TypeError(msg)
+        return self
+
+    def remove_data(self, rowval):
+        """
+        remove rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: list
+                values specified to remove
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[~mask]
+        return self
+    
+    def select_data(self, rowval):
+        """
+        select rows to the data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key: 
+                column name
+            value: list
+                values specified to select
+        """
+        if not isinstance(rowval,dict):
+            raise Exception("rowval must be a dictionary")
+        mask = self.data.isin(rowval)
+        mask = mask.any(axis='columns')
+        self.data = self.data[mask]
+        return self
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the fms plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        self.data = self.data.sort_values(**args)
+        return self
+
+    def filter_region(self,polygon):
+        """
+        Filter the region of the catalog.
+
+        Parameters:
+        -----------
+        polygon: list of tuples
+            Each tuple is consider a point (lon,lat).
+            The first point must be equal to the last point in the polygon.
+        
+        """
+        if polygon[0] != polygon[-1]:
+            raise Exception("The first point must be equal to the last point in the polygon.")
+
+        is_in_polygon = lambda x: ut.inside_the_polygon((x.longitude,x.latitude),polygon)
+        mask = self.data[["longitude","latitude"]].apply(is_in_polygon,axis=1)
+        self.data = self.data[mask]
+        return self
+
+    def plot(self,fig=None,
+            cpt=None,
+            show_cpt=True):
+        """
+        Plot the catalog.
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        cpt: None or CPT
+            color palette table applied to the catalog
+        show_cpt: bool
+            Show the color palette table
+        """
+        data = self.data
+
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+        
+        info2pygmt = self.basemeca.get_info2pygmt()
+        
+        try:
+            data = data[self.optional_columns2]
+        except:
+            try:
+                data = data[self.optional_columns1]
+            except:
+                data = data[self.columns]
+
+        data.to_csv("./tmp_meca.txt",sep="\t",index=False,header=False)
+        if self.basemeca.cmap:
+            if cpt == None:
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+
+            info2pygmt["color"] = data[cpt.color_target]
+            pygmt.makecpt(**cpt.makecpt_kwargs)
+            
+            if show_cpt:
+                fig.colorbar(frame=f'af+l"{cpt.label}"',
+                        position="JBC+e")
+        
+            fig.meca(
+                spec="./tmp_meca.txt",
+                convention="aki",
+                scale = str(info2pygmt["scale"]),
+                C = info2pygmt["cmap"],
+                offset=True,
+                transparency= info2pygmt["transparency"]
+                )
+        else:
+            fig.meca(
+                spec="./tmp_meca.txt",
+                convention="aki",
+                scale = str(info2pygmt["scale"]),
+                G = info2pygmt["color"],
+                offset=True,
+                transparency= info2pygmt["transparency"]
+                )
+        os.remove("./tmp_meca.txt")
+            
+        
+
+        return fig
+
+class FMs():
+    def __init__(self,fms=[],cpt=None,show_cpt=True):
+        """
+        Parameters:
+        -----------
+        fms: list
+            list of fm objects
+        cpt: None or CPT
+            color palette table applied to the fm
+        """
+        self.fms = fms
+        self.cpt = cpt
+        self.show_cpt = show_cpt
+
+    def __iter__(self):
+        return list(self.fms).__iter__()
+
+    def __nonzero__(self):
+        return bool(len(self.fms))
+
+    def __len__(self):
+        return len(self.fms)
+    
+    def __str__(self,extended=False) -> str:
+        msg = f"fms ({self.__len__()} fms)\n"
+        msg += "-"*len(msg) 
+
+        submsgs = []
+        for i,fm in enumerate(self.__iter__(),1):
+            submsg = f"{i}. "+fm.__str__(extended=extended)
+            submsgs.append(submsg)
+                
+        if len(self.fms)<=20 or extended is True:
+            submsgs = "\n".join(submsgs)
+        else:
+            three_first_submsgs = submsgs[0:3]
+            last_two_subsgs = submsgs[-2:]
+            len_others = len(self.fms) -len(three_first_submsgs) - len(last_two_subsgs)
+            submsgs = "\n".join(three_first_submsgs+\
+                                [f"...{len_others} other fms..."]+\
+                                last_two_subsgs)
+
+        return msg+ "\n" +submsgs
+        
+    def __setitem__(self, index, trace):
+        self.fms.__setitem__(index, trace)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(fms=self.fms.__getitem__(index))
+        else:
+            return self.fms.__getitem__(index)
+
+    def __delitem__(self, index):
+        return self.fms.__delitem__(index)
+
+    def __getslice__(self, i, j, k=1):
+        return self.__class__(fms=self.fms[max(0, i):max(0, j):k])
+
+    def append(self, fm):
+        """
+        append a fm
+        """
+        if isinstance(fm, FM):
+            self.fms.append(fm)
+        else:
+            msg = 'Append only supports a single FM object as an argument.'
+            raise TypeError(msg)
+        return self
+
+    def remove_data(self,rowval):
+        """
+        remove rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to remove
+        """
+        fms = []
+        for fm in self.fms:
+            fms.append(fm.remove_data(rowval))
+        self.fms = fms
+        return self
+
+    def select_data(self,rowval):
+        """
+        select rows of each data.
+
+        Parameters:
+        -----------
+        rowval : dict
+            key:  
+                column name
+            value: 
+                One or more values specified to select
+        """
+        fms = []
+        for fm in self.fms:
+            fms.append(fm.select_data(rowval))
+        self.fms = fms
+        return self
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
+    def project(self,startpoint,endpoint,
+                width,verbose=True):
+        projections = []
+        for fm in self.fms:
+            projection = fm.project(startpoint,endpoint,
+                                            width,verbose)
+            projections.append(projection)
+        return projections
+
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the events plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        fms = []
+        for fm in self.fms:
+            fms.append(fm.sort_values(**args))
+        self.fms = fms
+        return self
+    
+    def filter_datetime(self,starttime=None,endtime=None):
+        """
+        Filter the period of the fm.
+
+        Parameters:
+        -----------
+        starttime: datetime.datetime
+            start time
+        endtime: datetime.datetime
+            end time
+        
+        """
+        fms = []
+        for fm in self.fms:
+            fms.append(fm.filter_datetime(starttime,endtime))
+        self.fms = fms
+        return self
+
+    def filter_region(self,polygon):
+        """
+        Filter the region of the fm.
+
+        Parameters:
+        -----------
+        polygon: list of tuples
+            Each tuple is consider a point (lon,lat).
+            The first point must be equal to the last point in the polygon.
+        
+        """
+        fms = []
+        for fm in self.fms:
+            fms.append(fm.filter_region(polygon))
+        self.fms = fms
+        return self
+
+    def get_region(self,padding=[]):
+        """
+        It gets the region according to the limits of all events as a whole
+
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
+        """
+        lons,lats = [],[]
+        for fm in self.fms:
+            region = fm.get_region()
+            lons.append(region[0:2])
+            lats.append(region[2:])
+        lons = [ x for sublist in lons for x in sublist]
+        lats = [ x for sublist in lats for x in sublist]
+        region = [min(lons),max(lons),min(lats),max(lats)]
+
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
+
+    def plot(self,fig=None):
+
+        """
+        Plot the fm.
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        """
+
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+        if self.cpt == None:
+            data = []
+            for fm in self.fms:
+                if fm.basemeca.cmap:
+                    data.append(fm.data)
+            data = pd.concat(data)
+            zmin = data.depth.min()
+            zmax = data.depth.max()
+            self.cpt = CPT(color_target="depth",
+                        label="depth",
+                        cmap="rainbow",
+                        series=[zmin,zmax],
+                        reverse=True,
+                        overrule_bg=True)
+
+        show_fm_cpt = []
+        for fm in self.fms:
+            if fm.basemeca.cmap:
+                fm.plot(fig=fig,cpt=self.cpt,show_cpt=False)
+                _show_cpt = True
+            else:
+                fm.plot(fig=fig,cpt=None,show_cpt=False)
+                _show_cpt = False
+            show_fm_cpt.append(_show_cpt)
+
+        if any(show_fm_cpt):
+            if self.show_cpt:
+                fig.colorbar(frame=f'af+l"{self.cpt.label}"',
+                        position="JBC+e")
+
+        return fig
 
 class Well():
     def __init__(self,data,name,
@@ -1669,19 +2120,6 @@ class Wells():
             Colorbar applied.
         """
         self.wells = wells
-        self.cbar = cbar
-        
-class FocalMechanisms():
-    def __init__(self,fms=[],cbar = None):
-        """
-        Parameters:
-        -----------
-        fms: list
-            list of FocalMechanism objects
-        cbar: Cbar object
-            Colorbar applied.
-        """
-        self.fms = fms
         self.cbar = cbar
         
 class Profiles():
