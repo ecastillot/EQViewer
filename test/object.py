@@ -14,42 +14,73 @@ import matplotlib.pyplot as plt
 
 import random
 
-lats = -5;latn = 15;lonw = -85;lone = -65 #castilla
-cat_csv = os.path.join(rep_data,"earthquakes","events_20160101T20220901_NLLOC_ok.csv")
-tecto_shp = os.path.join(rep_data,"shapes","Tectónica.shp")
 
-
-
-
-
-fm_csv = os.path.join(rep_data,"mf","MF_quifa_201301_202203.csv")
-events = pd.read_csv(fm_csv)
-events = events.rename(columns={"Origin time":"origin_time",
-                        "Latitude (deg)":"latitude",
-                        "Longitude (deg)":"longitude",
-                        "Depth (m)":"depth",
-                        "Mag. (Mw)":"magnitude",
-                        "Dip n1 (deg)":"dip",
-                        "Rake n1 (deg)":"rake",
-                        "Strike n1 (deg)":"strike",
-                        "Dip n2 (deg)":"dip_n2",
-                        "Rake n2 (deg)":"rake_n2",
-                        "Strike n2 (deg)":"strike_n2",
-                        }
-                        )
-events["depth"]= events["depth"]/1e3
-ev2 = events.copy()
-fm = FM(events,BaseMeca(cmap=False))
-region = fm.get_region()
-events["plot_longitude"] = pd.Series(np.random.uniform(region[0], region[1], size=len(events)))
-events["plot_latitude"] = pd.Series(np.random.uniform(region[2], region[3], size=len(events)))
-fm1 = FM(events,BaseMeca(cmap=True))
-# print(events)
-fm2 = FM(ev2.iloc[0:6],BaseMeca(cmap=False))
-fm = FMs([fm1,fm2])
-fig = fm.plot()
-fig.show()
+# data_path = os.path.join(rep_data,"well","well_example.csv")
+data_path = "/home/emmanuel/EQviewer/data/well/survey_proc2.xlsx"
+data = pd.read_excel(data_path)
+data = data.rename(columns={"MD (ft)":"MD",
+                            "Lon (°)":"longitude",
+                            "Lat (°)":"latitude",
+                            "Z (m)": "depth",
+                            "TVD (ft)":"TVD"})
+# print(data)
+injection = pd.read_csv("/home/emmanuel/EQviewer/data/well/CASTILLA_ft_ini.dat")
+injection = injection.rename(columns={"min":"min_depth",
+                                    "max":"max_depth"})
+injection = injection[injection["name"]=="CAD01"]
+injection = injection[injection["name"]=="CAD01"]
+# print(injection.info())
+# exit()
+print(injection)
+injection = Injection(injection,depth_type="MD")
+t = injection.get_injection_trajectories(data)
+print(t)
+# well = Well(data,"PAD",injection=injection)
+# print(well)
+# print(well.data)
+# well.matplot()
+# plt.show()
 exit()
+# wells = Wells(wells=[well],
+#                 injection_cmap=None)
+
+
+# lats = -5;latn = 15;lonw = -85;lone = -65 #castilla
+# cat_csv = os.path.join(rep_data,"earthquakes","events_20160101T20220901_NLLOC_ok.csv")
+# tecto_shp = os.path.join(rep_data,"shapes","Tectónica.shp")
+
+
+
+
+
+# fm_csv = os.path.join(rep_data,"mf","MF_quifa_201301_202203.csv")
+# events = pd.read_csv(fm_csv)
+# events = events.rename(columns={"Origin time":"origin_time",
+#                         "Latitude (deg)":"latitude",
+#                         "Longitude (deg)":"longitude",
+#                         "Depth (m)":"depth",
+#                         "Mag. (Mw)":"magnitude",
+#                         "Dip n1 (deg)":"dip",
+#                         "Rake n1 (deg)":"rake",
+#                         "Strike n1 (deg)":"strike",
+#                         "Dip n2 (deg)":"dip_n2",
+#                         "Rake n2 (deg)":"rake_n2",
+#                         "Strike n2 (deg)":"strike_n2",
+#                         }
+#                         )
+# events["depth"]= events["depth"]/1e3
+# ev2 = events.copy()
+# fm = FM(events,BaseMeca(cmap=False))
+# region = fm.get_region()
+# events["plot_longitude"] = pd.Series(np.random.uniform(region[0], region[1], size=len(events)))
+# events["plot_latitude"] = pd.Series(np.random.uniform(region[2], region[3], size=len(events)))
+# fm1 = FM(events,BaseMeca(cmap=True))
+# # print(events)
+# fm2 = FM(ev2.iloc[0:6],BaseMeca(cmap=False))
+# fm = FMs([fm1,fm2])
+# fig = fm.plot()
+# fig.show()
+# exit()
 
 
 
@@ -256,24 +287,5 @@ fig.show()
 # plt.show()
 
 
-# # data_path = os.path.join(rep_data,"well","well_example.csv")
-# data_path = "/home/emmanuel/EDCT/EQviewer/data/well/survey_proc2.xlsx"
-# data = pd.read_excel(data_path)
-# data = data.rename(columns={"MD (ft)":"MD",
-#                             "Lon (°)":"longitude",
-#                             "Lat (°)":"latitude",
-#                             "Z (m)": "z",
-#                             "TVD (ft)":"TVD"})
-# # print(data)
-# injection = pd.read_csv("/home/emmanuel/EDCT/EQviewer/data/well/CASTILLA_ft_ini.dat")
-# injection = injection[injection["name"]=="CAD01"]
-# injection = injection[injection["name"]=="CAD01"]
-# print(injection.info())
-# # exit()
 
-# well = Well(data,"PAD",injection=injection,cbar=True)
-# well.plot()
-# plt.show()
-# # wells = Wells(wells=[well],
-# #                 injection_cmap=None)
     

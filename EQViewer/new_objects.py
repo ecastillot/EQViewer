@@ -16,6 +16,7 @@ import datetime as dt
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from obspy.geodetics.base import gps2dist_azimuth
+from scipy import interpolate
 from . import utils as ut
 pygmt.config(FORMAT_GEO_MAP="ddd.xx")
 
@@ -1685,6 +1686,40 @@ class FM():
         self.data = self.data[mask]
         return self
 
+    def project(self,startpoint,endpoint,
+                width,verbose=True):
+        """
+        Project data onto a line
+
+        Parameters:
+        -----------
+        startpoint: tuple
+            (lon,lat)
+        endpoint: tuple
+            (lon,lat)
+        width: tuple
+            (w_left,w_right)
+        
+        """
+        data = self.data
+        
+        columns = self.columns
+        data = data[self.columns]
+        projection = pygmt.project(
+                            data=data,
+                            unit=True,
+                            center=startpoint,
+                            endpoint=endpoint,
+                            convention="pz",
+                            width=width,
+                            verbose=verbose
+                                )
+        n_columns = range(0,len(columns))
+        renaming = dict(zip(n_columns,columns))
+        projection = projection.rename(columns=renaming)
+
+        return projection
+
     def plot(self,fig=None,
             cpt=None,
             show_cpt=True):
@@ -2009,56 +2044,300 @@ class FMs():
 
         return fig
 
+class Injection():
+    """
+    https://blog.finxter.com/scipy-interpolate-1d-2d-and-3d/
+    """
+    def __init__(self,data,depth_type):
+        """
+        Parameters:
+        -----------
+        data: pd.DataFrame
+            Dataframe with the next mandatory columns:
+            'min_depth','max_depth',
+            optional:
+            'measurement'
+        """
+        self.columns = ['min_depth','max_depth']
+        check =  all(item in data.columns.to_list() for item in self.columns)
+        if not check:
+            raise Exception("There is not the mandatory columns for the data in Injection object."\
+                            +"->'min_depth','max_depth'")
+        self.data = data
+        self.depth_type = depth_type
+    
+    def get_injection_trajectories(self,trajectory):
+        """
+        Parameters:
+        -----------
+        trajectory: pd.DataFrame 
+            Dataframe with the next mandatory columns:
+            'latitude','longitude','depth','TVD','MD'
+        depth_type: str
+            'depth','TVD','MD'
+        """
+        columns = ['latitude','longitude','depth','TVD','MD']
+        check =  all(item in trajectory.columns.to_list() for item in columns)
+        if not check:
+            raise Exception("There is not the mandatory columns for the trajectory "\
+                            +"->'latitude','longitude','depth','TVD','MD'")
+        
+        req_trajectory = trajectory[["longitude","latitude",self.depth_type]]
+        req_trajectory = req_trajectory.sort_values(self.depth_type,ignore_index=True)
+        index_trajectory = pd.Index(req_trajectory[self.depth_type].to_list())
+        start_injection_depth = index_trajectory.get_indexer(self.data.min_depth.to_list(), 
+                                                                            method="nearest")
+        end_injection_depth = index_trajectory.get_indexer(self.data.max_depth.to_list(), 
+                                                                            method="nearest")
+        injection_depth = list(zip(start_injection_depth,end_injection_depth))
+        injection_trajectories = []
+        for start,end in injection_depth:
+            t = trajectory[trajectory[self.depth_type]>=index_trajectory[start]]
+            t = t[t[self.depth_type]<=index_trajectory[end]]
+            if not t.empty:
+                injection_trajectories.append(t)
+        if not injection_trajectories:
+            injection_trajectories = pd.DataFrame()
+        else:
+            injection_trajectories = pd.concat(injection_trajectories)
+        return injection_trajectories
+        
+
+
 class Well():
     def __init__(self,data,name,
-                color="blue",
-                apply_cbar=False,
+                survey_baseplot = BasePlot(
+                        size=None,
+                        style="s0.05",
+                        cmap=True,
+                        color="black",
+                        label="data",
+                        transparency=0,
+                        pen=f"+0.0001p+i"),
                 injection = pd.DataFrame(),
-                injection_cbar = None
+                injection_baseplot = BasePlot(
+                        size=None,
+                        style="g0.3",
+                        cmap=False,
+                        color="blue",
+                        label="data",
+                        transparency=0,
+                        pen=f"+0.0001p+i"),
                 ) -> None:
         """
         Parameters:
         -----------
         data: pd.DataFrame 
             Dataframe with the next mandatory columns:
-            'latitude','longitude','z','TVD','MD'
+            'latitude','longitude','depth','TVD','MD'
         name: str
             Name of the well
-        color: str or None
-            Color from pygmt color gallery. 
-            It is not considered when cbar=True
-        apply_cbar: bool
-            Use Colorbar (the specifications of the colorbar are located in Wells object). 
+        survey_baseplot: BasePlot
+            Control survey plot args
         injection: pd.DataFrame
             Dataframe with the next mandatory columns:
-            'min_depth','max_depth','depth_type','water_flow'
-        injection_cbar: None or Cbar
-            Colorbar for the amount of injection.
+            'min_depth','max_depth','depth_type',
+            optional:
+            'water_flow'
+        injection_baseplot: BasePlot
+            Control injection plot args
         """
-        columns = ['latitude','longitude','z','TVD','MD']
-        cols = list(set(columns) & set(data.columns.to_list()))
-        if list(set(cols)) != list(set(columns)):
+        self.columns = ['latitude','longitude','depth','TVD','MD']
+        check =  all(item in data.columns.to_list() for item in self.columns)
+        if not check:
             raise Exception("There is not the mandatory columns for the data in Well object."\
-                            +"->'latitude','longitude','z','TVD','MD'")
-        self.data = data[columns]
-        self.color = color
-        self.apply_cbar = apply_cbar
+                            +"->'latitude','longitude','depth','TVD','MD'")
+        self.data = data.sort_values("depth")
         self.name = name
+        self.survey_baseplot = survey_baseplot
         self.injection = injection
-        self.injection_cbar = injection_cbar
+        self.injection_baseplot = injection_baseplot
 
         
+    @property
+    def empty(self):
+        return self.data.empty
 
-        @property
-        def empty(self):
-            return self.data.empty
+    def __len__(self):
+        return len(self.data)
 
-        def __len__(self):
-            return len(self.data)
+    def __str__(self,extended=False) -> str:
+        start = (round(self.data.iloc[0].longitude,2),
+                round(self.data.iloc[0].latitude,2))
+                    
+        if extended:
+            region = list(map(lambda x: round(x,2),self.get_region()))
+            msg = f"Well | starting in (lon,lat): {start} "\
+                    +f"\n\tdepth : {[round(self.data.depth.min(),2),round(self.data.depth.max(),2)]}"\
+                    +f"\n\tregion: {region}"
+        else:
+            msg = f"Well | starting in (lon,lat): {start} "
 
-        def __str__(self) -> str:
-            msg = f"Well | {self.__len__()} points in the trajectory"
-            return msg
+        return msg
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
+    def get_region(self,padding=[]):
+        """
+        It gets the region according to the limits in the well
+        
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
+        """
+        lonw,lone = self.data.longitude.min(),self.data.longitude.max()
+        lats,latn = self.data.latitude.min(),self.data.latitude.max()
+        
+        region = [lonw, lone, lats, latn]
+        
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
+
+    def sort_values(self,**args):
+        """
+        Sort values. Take in mind that it could affect the order of the events plotted
+        args: The parameters are the pd.DataFrame.sort_values parameters
+        """
+        wells = []
+        for well in self.wells:
+            wells.append(well.sort_values(**args))
+        self.wells = wells
+        return self
+    
+    def project(self,startpoint,endpoint,
+                width,verbose=True):
+        """
+        Project data onto a line
+
+        Parameters:
+        -----------
+        startpoint: tuple
+            (lon,lat)
+        endpoint: tuple
+            (lon,lat)
+        width: tuple
+            (w_left,w_right)
+        
+        """
+        data = self.data
+        try:
+            columns = self.columns+["water_flow"]
+            data = data[columns]
+        except:
+            columns = self.columns
+            data = data[self.columns]
+        projection = pygmt.project(
+                            data=data,
+                            unit=True,
+                            center=startpoint,
+                            endpoint=endpoint,
+                            convention="pz",
+                            width=width,
+                            verbose=verbose
+                                )
+        n_columns = range(0,len(columns))
+        renaming = dict(zip(n_columns,columns))
+        projection = projection.rename(columns=renaming)
+
+        # if not self.injection.empty:
+
+
+        return projection
+
+    def plot(self,fig=None,
+            survey_cpt=None,
+            show_survey_cpt=True,
+            injection_cpt=None,
+            show_injection_cpt=True):
+        """
+        Plot the catalog.
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        cpt: None or CPT
+            color palette table applied to the catalog
+        show_cpt: bool
+            Show the color palette table
+        """
+        data = self.data
+
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+        
+        survey_info2pygmt = self.survey_baseplot.get_info2pygmt(data)
+        if self.survey_baseplot.cmap:
+            if survey_cpt == None:
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                survey_cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+
+            survey_info2pygmt["color"] = data[survey_cpt.color_target]
+            pygmt.makecpt(**survey_cpt.makecpt_kwargs)
+            
+            if show_survey_cpt:
+                fig.colorbar(frame=f'af+l"{survey_cpt.label}"',
+                        position="JBC+e")
+        fig.plot(
+            x=data.longitude,
+            y=data.latitude,
+            **survey_info2pygmt
+        )
+
+        if not self.injection.empty:
+            injection_info2pygmt = self.injection_baseplot.get_info2pygmt(data)
+
+            if injection_cpt == None:
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                injection_cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+
+            survey_info2pygmt["color"] = data[injection_cpt.color_target]
+            pygmt.makecpt(**injection_cpt.makecpt_kwargs)
+            
+            if show_survey_cpt:
+                with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
+                    fig.colorbar(frame=["af",f'y+l{injection_cpt.label}'],
+                        position='JMR+o1c/0c+e')
+            
+            fig.plot(
+            x=self.injection.longitude,
+            y=self.injection.latitude,
+            **injection_info2pygmt
+            )
+        return fig
 
     def matplot(self,ax=None):
         if ax == None:
