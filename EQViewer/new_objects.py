@@ -524,7 +524,6 @@ class Catalog():
         return fig
 
     def plot_profile(self,profile,
-                    baseprofile,
                     depth_unit,
                     cpt=None,
                     show_cpt=True,
@@ -532,6 +531,7 @@ class Catalog():
                     verbose=True):
         startpoint = profile.coords[0]
         endpoint = profile.coords[1]
+        baseprofile = profile.baseprofile
         projection = self.project(startpoint,endpoint,
                                 profile.width,verbose)
 
@@ -878,7 +878,6 @@ class MulCatalog():
         return fig
 
     def plot_profile(self,profile,
-                    baseprofile,
                     depth_unit,
                     fig=None,
                     verbose=True):
@@ -891,6 +890,8 @@ class MulCatalog():
         fig: None or pygmt.Figure
             Basemap figure
         """
+        baseprofile = profile.baseprofile
+
         if fig == None:
             C,D = profile.coords
             max_distance,a,ba = gps2dist_azimuth(C[1],C[0],D[1],D[0])
@@ -920,7 +921,6 @@ class MulCatalog():
             if catalog.baseplot.cmap:
                 catalog.plot_profile(fig=fig,
                                 profile=profile,
-                                baseprofile=baseprofile,
                                 depth_unit=depth_unit,
                                 cpt=self.cpt,
                                 show_cpt=False,
@@ -929,7 +929,6 @@ class MulCatalog():
             else:
                 catalog.plot_profile(fig=fig,
                             profile=profile,
-                            baseprofile=baseprofile,
                             depth_unit=depth_unit,
                             cpt=None,show_cpt=False,
                             verbose=verbose)
@@ -2614,15 +2613,17 @@ class Well():
 
 class Profile():
     def __init__(self,name,coords,width,
+                baseprofile,
                 colorline="magenta") -> None:
         self.name = name
         self.coords = coords
         self.width = width
+        self.baseprofile = baseprofile
         self.colorline = colorline
 
-class MulProfile():
-    def __init__(self,profiles) -> None:
-        self.profiles = profiles
+# class MulProfile():
+#     def __init__(self,profiles) -> None:
+#         self.profiles = profiles
 
 # class ProfileHelper():
 #     def __init__(self,

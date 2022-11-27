@@ -40,12 +40,13 @@ baseplot1 = BasePlot(color = "gray",
 catalog = Catalog(df1,baseplot1 )
 catalog2 = Catalog(df2,baseplot2 )
 
-profile = Profile(name=("A","A'"),      
-        coords=((-80,10),(-70,10)), 
-        width=(-300,300)
-            )
 baseprofile = BaseProfile(projection="X10/-10",
                         depth_lims=[0,200],output_unit="km")
+profile = Profile(name=("A","A'"),      
+        coords=((-80,10),(-70,10)), 
+        width=(-300,300),
+        baseprofile=baseprofile
+            )
 
 # fig = catalog.plot_profile(profile,baseprofile,
 #                             depth_unit="km",
@@ -60,7 +61,7 @@ multicatalog = MulCatalog(catalogs=[catalog,catalog2],
 print(multicatalog.__str__(True))
 fig = multicatalog.plot()
 fig.show()
-prof_fig = multicatalog.plot_profile(profile,baseprofile,
+prof_fig = multicatalog.plot_profile(profile,
                             depth_unit="km",
                             verbose=False)
 prof_fig.show()
