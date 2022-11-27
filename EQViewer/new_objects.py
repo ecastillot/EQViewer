@@ -9,6 +9,7 @@ from operator import add
 import copy
 import types
 import os
+import numpy as np
 import pygmt
 import pandas as pd
 import geopandas as gpd
@@ -85,7 +86,7 @@ class BasePlot():
             style=None,
             cmap=False,
             color="lightblue",
-            label="data",
+            label=None,
             transparency=0,
             pen=None,
             **plot_kwargs) -> None:
@@ -111,7 +112,7 @@ class BasePlot():
         cmap: bool
             Use Colorbar (the specifications of the colorbar always are located in '.plot' functions). 
         color: str or None
-            Color from pygmt color gallery. 
+            Fill color from pygmt color gallery. 
             It is not considered when cmap=True
         transparency: float
             transparency of your plots
@@ -142,6 +143,73 @@ class BasePlot():
         args.update(kwargs)
         args = args_cleaner(args,rm_args)
         return args
+
+class BaseProfile():
+    def __init__(self,
+            projection,
+            depth_lims,
+            output_unit="m",
+            grid = None,
+            reverse_xy=False,
+            ) -> None:
+        """
+        Parameters:
+        -----------
+        output_unit: str
+            "m" or "km"
+        grid: tuple
+            xy grid in the same units as output units
+        reverse_xy: bool
+            Reverse the figure
+        
+        panel: bool or int or list
+            Select a specific subplot panel. Only allowed when in subplot mode. 
+            Use panel=True to advance to the next panel in the selected order.
+            Instead of row,col you may also give a scalar value index which depends 
+            on the order you set via autolabel when the subplot was defined. 
+            Note: row, col, and index all start at 0.
+        """
+        self.projection = projection
+        self.output_unit = output_unit
+        self.depth_lims = depth_lims
+        self.grid = grid 
+        self.reverse_xy = reverse_xy
+
+    def get_basemap_args(self,max_distance):
+        if self.output_unit == "km":
+            distance_lims = [0,max_distance/1e3]
+        else:
+            distance_lims = [0,max_distance]
+
+
+        if self.reverse_xy:
+            region = self.depth_lims + distance_lims
+            # projection="x?/?"
+            y_label = "Distance"
+            x_label = "Depth"
+            f_label= "ESnw"
+        else:
+            region = distance_lims + self.depth_lims
+            # projection="x?/-?"
+            # projection="X10/-10"
+            x_label = "Distance"
+            y_label = "Depth"
+            f_label= "WSrt"
+
+        if self.grid == None:
+            grid1 = region[:2]
+            grid1 = round((grid1[1] -grid1[0])/5,2)
+            grid2 = region[2:]
+            grid2 = round((grid2[1] -grid2[0])/5,2)
+            grid = [grid1,grid2]
+
+        frame=[
+                f'xafg{grid[0]}+l"{x_label} ({self.output_unit})"', 
+                f'yafg{grid[1]}+l"{y_label} ({self.output_unit})"',
+                f_label
+                ]
+        return {"region":region,"projection":self.projection,
+                "frame":frame}
 
 class CPT():
    def __init__(self,color_target,label,**makecpt_kwargs):
@@ -404,9 +472,11 @@ class Catalog():
                                 3:"magnitude"})
         return projection
 
-    def plot(self,fig=None,
+    def plot(self,
             cpt=None,
-            show_cpt=True):
+            show_cpt=True,
+            profiles=None,
+            fig=None):
         """
         Plot the catalog.
 
@@ -448,6 +518,58 @@ class Catalog():
         fig.plot(
             x=data.longitude,
             y=data.latitude,
+            **info2pygmt
+        )
+
+        return fig
+
+    def plot_profile(self,profile,
+                    baseprofile,
+                    depth_unit,
+                    cpt=None,
+                    show_cpt=True,
+                    fig=None,
+                    verbose=True):
+        startpoint = profile.coords[0]
+        endpoint = profile.coords[1]
+        projection = self.project(startpoint,endpoint,
+                                profile.width,verbose)
+
+        if fig == None:
+            C,D = profile.coords
+            max_distance,a,ba = gps2dist_azimuth(C[1],C[0],D[1],D[0])
+            basemap_args = baseprofile.get_basemap_args(max_distance)
+
+            fig = pygmt.Figure()
+            fig.basemap(**basemap_args)
+
+        if depth_unit == "m":
+            projection["depth"] = projection["depth"]/1e3
+        if baseprofile.output_unit == "m":
+            projection["depth"] = projection["depth"]*1e3
+            projection["distance"] = projection["distance"]*1e3
+
+        info2pygmt = self.baseplot.get_info2pygmt(projection)
+        if self.baseplot.cmap:
+            if cpt == None:
+                zmin = projection.depth.min()
+                zmax = projection.depth.max()
+                cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+
+            info2pygmt["color"] = projection[cpt.color_target]
+            pygmt.makecpt(**cpt.makecpt_kwargs)
+            
+            if show_cpt:
+                fig.colorbar(frame=f'af+l"{cpt.label}"',
+                        position="JBC+e")
+        fig.plot(
+            x=projection.distance,
+            y=projection.depth,
             **info2pygmt
         )
 
@@ -502,7 +624,7 @@ class Catalog():
         ax.set_ylabel("Latitude [°]")
         return ax
 
-class Catalogs():
+class MulCatalog():
     def __init__(self,catalogs=[],cpt=None,show_cpt=True):
         """
         Parameters:
@@ -703,7 +825,7 @@ class Catalogs():
 
         return region
 
-    def plot(self,fig=None):
+    def plot(self,profiles=None,fig=None):
 
         """
         Plot the catalog.
@@ -724,15 +846,16 @@ class Catalogs():
             for catalog in self.catalogs:
                 if catalog.baseplot.cmap:
                     data.append(catalog.data)
-            data = pd.concat(data)
-            zmin = data.depth.min()
-            zmax = data.depth.max()
-            self.cpt = CPT(color_target="depth",
-                        label="depth",
-                        cmap="rainbow",
-                        series=[zmin,zmax],
-                        reverse=True,
-                        overrule_bg=True)
+            if data:
+                data = pd.concat(data)
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                self.cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
 
         show_catalog_cpt = []
         for catalog in self.catalogs:
@@ -741,6 +864,75 @@ class Catalogs():
                 _show_cpt = True
             else:
                 catalog.plot(fig=fig,cpt=None,show_cpt=False)
+                _show_cpt = False
+            show_catalog_cpt.append(_show_cpt)
+
+        # if isinstance(profile,Profile):
+
+
+        if any(show_catalog_cpt):
+            if self.show_cpt:
+                fig.colorbar(frame=f'af+l"{self.cpt.label}"',
+                        position="JBC+e")
+
+        return fig
+
+    def plot_profile(self,profile,
+                    baseprofile,
+                    depth_unit,
+                    fig=None,
+                    verbose=True):
+
+        """
+        Plot the catalog.
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        """
+        if fig == None:
+            C,D = profile.coords
+            max_distance,a,ba = gps2dist_azimuth(C[1],C[0],D[1],D[0])
+            basemap_args = baseprofile.get_basemap_args(max_distance)
+
+            fig = pygmt.Figure()
+            fig.basemap(**basemap_args)
+
+        if self.cpt == None:
+            data = []
+            for catalog in self.catalogs:
+                if catalog.baseplot.cmap:
+                    data.append(catalog.data)
+            if data:
+                data = pd.concat(data)
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                self.cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+
+        show_catalog_cpt = []
+        for catalog in self.catalogs:
+            if catalog.baseplot.cmap:
+                catalog.plot_profile(fig=fig,
+                                profile=profile,
+                                baseprofile=baseprofile,
+                                depth_unit=depth_unit,
+                                cpt=self.cpt,
+                                show_cpt=False,
+                                verbose=verbose)
+                _show_cpt = True
+            else:
+                catalog.plot_profile(fig=fig,
+                            profile=profile,
+                            baseprofile=baseprofile,
+                            depth_unit=depth_unit,
+                            cpt=None,show_cpt=False,
+                            verbose=verbose)
                 _show_cpt = False
             show_catalog_cpt.append(_show_cpt)
 
@@ -962,7 +1154,7 @@ class Station():
         ax.set_ylabel("Latitude [°]")
         return ax
 
-class Stations():
+class MulStation():
     def __init__(self,stations=[]):
         """
         Parameters:
@@ -1317,7 +1509,7 @@ class Shape():
         fig.plot(self.data,**info2pygmt)
         return fig
 
-class Shapes():
+class MulShape():
     def __init__(self,shapes=[]):
         """
         Parameters:
@@ -1795,7 +1987,7 @@ class FM():
 
         return fig
 
-class FMs():
+class MulFM():
     def __init__(self,fms=[],cpt=None,show_cpt=True):
         """
         Parameters:
@@ -2048,7 +2240,10 @@ class Injection():
     """
     https://blog.finxter.com/scipy-interpolate-1d-2d-and-3d/
     """
-    def __init__(self,data,depth_type):
+    def __init__(self,data,depth_type,
+                baseplot=BasePlot(color="blue",
+                            cmap=False, 
+                            pen=None)):
         """
         Parameters:
         -----------
@@ -2057,6 +2252,8 @@ class Injection():
             'min_depth','max_depth',
             optional:
             'measurement'
+        depth_type: str
+            'depth','TVD','MD'
         """
         self.columns = ['min_depth','max_depth']
         check =  all(item in data.columns.to_list() for item in self.columns)
@@ -2065,64 +2262,95 @@ class Injection():
                             +"->'min_depth','max_depth'")
         self.data = data
         self.depth_type = depth_type
+        self.baseplot = baseplot
     
-    def get_injection_trajectories(self,trajectory):
+    @property
+    def empty(self):
+        return self.data.empty
+
+    def _get_injection_trajectories(self,trajectory):
         """
         Parameters:
         -----------
         trajectory: pd.DataFrame 
             Dataframe with the next mandatory columns:
             'latitude','longitude','depth','TVD','MD'
-        depth_type: str
-            'depth','TVD','MD'
         """
-        columns = ['latitude','longitude','depth','TVD','MD']
-        check =  all(item in trajectory.columns.to_list() for item in columns)
-        if not check:
-            raise Exception("There is not the mandatory columns for the trajectory "\
-                            +"->'latitude','longitude','depth','TVD','MD'")
-        
-        req_trajectory = trajectory[["longitude","latitude",self.depth_type]]
-        req_trajectory = req_trajectory.sort_values(self.depth_type,ignore_index=True)
-        index_trajectory = pd.Index(req_trajectory[self.depth_type].to_list())
-        start_injection_depth = index_trajectory.get_indexer(self.data.min_depth.to_list(), 
-                                                                            method="nearest")
-        end_injection_depth = index_trajectory.get_indexer(self.data.max_depth.to_list(), 
-                                                                            method="nearest")
-        injection_depth = list(zip(start_injection_depth,end_injection_depth))
-        injection_trajectories = []
-        for start,end in injection_depth:
-            t = trajectory[trajectory[self.depth_type]>=index_trajectory[start]]
-            t = t[t[self.depth_type]<=index_trajectory[end]]
-            if not t.empty:
-                injection_trajectories.append(t)
-        if not injection_trajectories:
-            injection_trajectories = pd.DataFrame()
+        if self.depth_type=="depth":
+            depth = pd.DataFrame({"depth":trajectory.depth})
         else:
-            injection_trajectories = pd.concat(injection_trajectories)
-        return injection_trajectories
+            columns = ['latitude','longitude','depth','TVD','MD']
+            check =  all(item in trajectory.columns.to_list() for item in columns)
+            if not check:
+                raise Exception("There is not the mandatory columns for the trajectory "\
+                                +"->'latitude','longitude','depth','TVD','MD'")
+            
+            trajectory = trajectory.drop_duplicates(subset=[self.depth_type,"depth"])
+            f = interpolate.interp1d(trajectory[self.depth_type].to_numpy(), 
+                                            trajectory["depth"].to_numpy(),
+                                            kind="linear",
+                                            fill_value="extrapolate")
+
+            z = np.linspace(trajectory[self.depth_type].min(),
+                            trajectory[self.depth_type].max(),
+                            num=int(abs(trajectory[self.depth_type].max()-\
+                                        trajectory[self.depth_type].min())),
+                            endpoint=True)
+            f_z =  f(z)
+            depth = pd.DataFrame({str(self.depth_type):z,
+                                "depth":f_z})
+
+
+        depths = []
+        for i,row in self.data.iterrows():
+            _depth = depth[(depth[self.depth_type]>=row.min_depth) &\
+                           (depth[self.depth_type]<=row.max_depth) ]
+            if "measurement" in self.data.columns.to_list():
+                _depth["measurement"] = row.measurement
+            depths.append(_depth)
+        return depths
+
+        # req_trajectory = trajectory[["longitude","latitude",self.depth_type]]
+        # req_trajectory = req_trajectory.sort_values(self.depth_type,ignore_index=True)
+        # index_trajectory = pd.Index(req_trajectory[self.depth_type].to_list())
+        # start_injection_depth = index_trajectory.get_indexer(self.data.min_depth.to_list(), 
+        #                                                                     method="nearest")
+        # end_injection_depth = index_trajectory.get_indexer(self.data.max_depth.to_list(), 
+        #                                                                     method="nearest")
+        # injection_depth = list(zip(start_injection_depth,end_injection_depth))
+        # injection_trajectories = []
+        # for start,end in injection_depth:
+        #     t = trajectory[trajectory[self.depth_type]>=index_trajectory[start]]
+        #     t = t[t[self.depth_type]<=index_trajectory[end]]
+        #     if not t.empty:
+        #         injection_trajectories.append(t)
+        # if not injection_trajectories:
+        #     injection_trajectories = pd.DataFrame()
+        # else:
+        #     injection_trajectories = pd.concat(injection_trajectories)
+        # return injection_trajectories
         
 
 
 class Well():
     def __init__(self,data,name,
                 survey_baseplot = BasePlot(
-                        size=None,
-                        style="s0.05",
+                        # size=None,
+                        style="g0.3",
                         cmap=True,
                         color="black",
                         label="data",
                         transparency=0,
                         pen=f"+0.0001p+i"),
-                injection = pd.DataFrame(),
+                injection = None,
                 injection_baseplot = BasePlot(
                         size=None,
                         style="g0.3",
                         cmap=False,
                         color="blue",
                         label="data",
-                        transparency=0,
-                        pen=f"+0.0001p+i"),
+                        transparency=80),
+
                 ) -> None:
         """
         Parameters:
@@ -2305,38 +2533,74 @@ class Well():
             if show_survey_cpt:
                 fig.colorbar(frame=f'af+l"{survey_cpt.label}"',
                         position="JBC+e")
+        
         fig.plot(
             x=data.longitude,
             y=data.latitude,
             **survey_info2pygmt
         )
 
-        if not self.injection.empty:
+        if self.injection != None:
+
+            injection_trajectories = self.injection._get_injection_trajectories(data)
+            
+            all_injection = pd.concat(injection_trajectories)
+
             injection_info2pygmt = self.injection_baseplot.get_info2pygmt(data)
+            if self.injection.baseplot.cmap:
 
-            if injection_cpt == None:
-                zmin = data.depth.min()
-                zmax = data.depth.max()
-                injection_cpt = CPT(color_target="depth",
-                            label="depth",
-                            cmap="rainbow",
-                            series=[zmin,zmax],
-                            reverse=True,
-                            overrule_bg=True)
-
-            survey_info2pygmt["color"] = data[injection_cpt.color_target]
-            pygmt.makecpt(**injection_cpt.makecpt_kwargs)
-            
-            if show_survey_cpt:
-                with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
-                    fig.colorbar(frame=["af",f'y+l{injection_cpt.label}'],
+                if (injection_cpt == None) and \
+                    ("measurement" in all_injection.columns.to_list()):
+                    zmin = all_injection.measurement.min()
+                    zmax = all_injection.measurement.max()
+                    injection_cpt = CPT(color_target="measurement",
+                                label="measurement",
+                                cmap="cool",
+                                series=[zmin,zmax],
+                                reverse=True,
+                                overrule_bg=True)
+                injection_info2pygmt["color"] = data[injection_cpt.color_target].to_numpy()
+                pygmt.makecpt(**injection_cpt.makecpt_kwargs)
+        
+                if show_injection_cpt:
+                    with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
+                        fig.colorbar(frame=["af",f'y+l{injection_cpt.label}'],
                         position='JMR+o1c/0c+e')
-            
-            fig.plot(
-            x=self.injection.longitude,
-            y=self.injection.latitude,
-            **injection_info2pygmt
-            )
+           
+            data = self.data.drop_duplicates(subset=["latitude","depth"])
+            data = data.drop_duplicates(subset=["longitude","depth"])
+            f_lat= interpolate.interp1d(data.depth.to_numpy(), 
+                                            data.latitude.to_numpy(),
+                                            kind="linear",
+                                            fill_value="extrapolate")
+            f_lon= interpolate.interp1d(data.depth.to_numpy(), 
+                                            data.longitude.to_numpy(),
+                                            kind="linear",
+                                            fill_value="extrapolate")
+            for injection in injection_trajectories:
+                lat = f_lat(injection["depth"].to_numpy())
+                lon = f_lon(injection["depth"].to_numpy())
+
+                if not self.injection.baseplot.cmap:
+                    injection_info2pygmt["color"] = data[injection_cpt.color_target]
+                #     color = injection["measurement"].to_numpy()
+                # else: 
+                #     color = "blue"
+
+                fig.plot(
+                        x=lon,
+                        y=lat,
+                        **injection_info2pygmt
+                        )
+                # fig.plot(
+                #         x=lon,
+                #         y=lat,
+                #         cmap=self.injection.baseplot.cmap,
+                #         color=color,
+                #         size=None,
+                #         style="g0.3",
+                #         )
+
         return fig
 
     def matplot(self,ax=None):
@@ -2349,46 +2613,185 @@ class Well():
         ax.invert_zaxis()
 
 class Profile():
-    def __init__(self,
-        name, coords, width, 
-        colorline="magenta", #only for map figure
-        color= "blue", # only for profile figure.
-                        #color of the events in the profile. Only if cbar is False
-        apply_cbar=True, # only for profile figure. # cbar controlled by cbar_profile_args
-        grid=None,
-        legend=False,
-        ):
-        """
-        Parameter:
-        ----------
-        name: str
-            Name of the profile.
-        coords: 2d-tuple
-            2d-Tuple of two 2d-tuples.
-            ((ini_lon,ini_lat),(end_lon,end_lat))
-        width: 2d-tuple
-            (left_width,right_width) in km.
-        color: str or None
-            Color from pygmt color gallery. 
-            It is not considered when cbar=True
-        apply_cbar: bool
-            Use Colorbar (the specifications of the colorbar
-            are located in FocalMechanisms object).
-        grid: 2d-tuple
-            Grid of the profile plot. (x-axis in km,y-axis in km)
-        legend:bool
-            True to show the legends
-        """
+    def __init__(self,name,coords,width,
+                colorline="magenta") -> None:
         self.name = name
         self.coords = coords
         self.width = width
         self.colorline = colorline
-        self.color = color
-        self.apply_cbar = apply_cbar
-        self.grid=grid
-        self.legend = legend
 
-class Wells():
+class MulProfile():
+    def __init__(self,profiles) -> None:
+        self.profiles = profiles
+
+# class ProfileHelper():
+#     def __init__(self,
+#                 data,
+#                 data_depth_unit,
+#                 basedata,
+#                 baseprofile,
+#                 ) -> None:
+#         """
+#         Parameters:
+#         -----------
+#         data: DataFrame
+#             mandatory columns: distance and depth
+#             Project data in the profile
+#         basedata: BasePlot or BaseMeca
+#             Parameters to plot data in the profile
+#         baseprofile: BaseProfile
+#             To control profile axis
+#         """
+#         self.columns = ['distance','depth']
+#         check =  all(item in data.columns.to_list() for item in self.columns)
+#         if not check:
+#             raise Exception("There is not the mandatory columns for the data in object."\
+#                             +"->'distance','depth'")
+
+#         if data_depth_unit == "m":
+#             data["depth"] = data["depth"]/1e3
+#         if baseprofile.output_unit == "m":
+#             data["depth"] = data["depth"]*1e3
+#             data["distance"] = data["distance"]*1e3
+
+#         self.data = data
+#         self.basedata = basedata
+#         self.baseprofile = baseprofile
+    
+#     def get_region(self,padding=[]):
+#         """
+#         It gets the region according to the limits of the distance and depth columns in the data
+        
+#         Parameters:
+#         -----------
+#         padding: 4D-list or float or int
+#             list: Padding on each side of the region [distw,distw,deps,depn] in the same units of the data.
+#             float or int: padding amount on each side of the region from 0 to 1,
+#                         where 1 is considered the distance on each side of the region.
+#         """
+#         distw,diste = self.data.distance.min(),self.data.distance.max()
+#         deps,depn = self.data.depth.min(),self.data.depth.max()
+        
+#         region = [distw, diste, deps, depn]
+        
+#         if isinstance(padding,list):
+#             if padding:
+#                 if len(padding) != 4:
+#                     raise Exception("Padding parameter must be 4D")
+#                 else:
+#                     region = list( map(add, region, padding) )
+#         elif isinstance(padding,float) or isinstance(padding,int):
+#             x = abs(region[1]-region[0])
+#             y = abs(region[3]-region[2])
+#             adding4x = x*padding
+#             adding4y = y*padding
+#             padding = [-adding4x, adding4x, -adding4y, adding4y]
+#             region = list( map(add, region, padding) )
+
+#         return region
+
+#     def plot(self,
+#             cpt=None,show_cpt=None,
+#             fig=None):
+
+#         """
+#         cpt: CPT 
+#             Only works  if cmap=True in object parameters.
+#             cpt is the colorPaletteTable
+#             to plot the object in the profile figure.
+#         show_cpt: bool
+#             Only works if cmap=True in object parameters .
+#             show_cpt true to show the cpt in the progile figure
+#         fig: pygmt Figure
+#             use other instanced figure
+#         """
+
+#         region = self.get_region(padding=0)
+#         basemap_args = self.baseprofile.get_basemap_args(region)
+#         # if fig == None:
+#         #     fig = pygmt.Figure() 
+#             # print()
+#         fig.basemap(**basemap_args)
+#         # else:
+
+#         return fig
+#         # info2pygmt = self.baseplot.get_info2pygmt(data)
+
+
+# class Profile():
+#     def __init__(self,
+#         name, 
+#         coords, 
+#         width, 
+#         baseprofile=BaseProfile(),
+#         colorline="magenta", #only for map figure
+#         ):
+#         """
+#         Parameter:
+#         ----------
+#         name: str
+#             Name of the profile.
+#         coords: 2d-tuple
+#             2d-Tuple of two 2d-tuples.
+#             ((ini_lon,ini_lat),(end_lon,end_lat))
+#         width: 2d-tuple
+#             (left_width,right_width) in km.
+#         color: str or None
+#             Color from pygmt color gallery. 
+#             It is not considered when cbar=True
+#         apply_cbar: bool
+#             Use Colorbar (the specifications of the colorbar
+#             are located in FocalMechanisms object).
+#         grid: 2d-tuple
+#             Grid of the profile plot. (x-axis in km,y-axis in km)
+#         legend:bool
+#             True to show the legends
+#         """
+#         self.name = name
+#         self.coords = coords
+#         self.width = width
+#         self.baseprofile = baseprofile
+#         self.colorline = colorline
+#         self.mul_objects = []
+
+#     def add(self,mul_object,depth_unit,
+#             verbose=True):
+
+#         info2plot = {"cpt":mul_object.cpt,
+#                     "show_cpt":mul_object.show_cpt}
+#         for object in mul_object:
+#             project = getattr(object, "project", None)
+#             startpoint = self.coords[0]
+#             endpoint = self.coords[1]
+#             if callable(project):
+#                 projection = object.project(startpoint,endpoint,
+#                                             self.width,verbose)
+#             else:
+#                 raise Exception(f"There is no project method for this object:{object}")
+            
+#             for type_of_base in ["baseplot","basemeca"]:
+#                 basedata = getattr(object, type_of_base, None)
+#                 if basedata != None:
+#                     break
+            
+#             if basedata == None:
+#                 raise Exception(f"No baseplot or basemeca in your object: {object}")
+
+#             p_o = ProfileHelper(projection,depth_unit,basedata,self.baseprofile)
+#             info2plot["p(o)"] = p_o
+#             self.mul_objects.append(info2plot)
+
+#     def plot(self,
+#             cpt=None,show_cpt=None,
+#             fig=None):
+
+#         if fig == None:
+#             fig = pygmt.Figure() 
+
+#         for object in self.mul_objects:
+#             object.plot(fig=fig)
+
+class MulWell():
     def __init__(self,wells=[],cbar = None):
         """
         Parameters:
@@ -2401,7 +2804,7 @@ class Wells():
         self.wells = wells
         self.cbar = cbar
         
-class Profiles():
+class MulProfile():
     def __init__(self,profiles=[]):
         """
         Parameters:

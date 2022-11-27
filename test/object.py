@@ -11,42 +11,67 @@ import geopandas as gpd
 from EQViewer.new_objects import *
 import EQViewer.utils as equt
 import matplotlib.pyplot as plt
-
+import datetime as t
 import random
 
 
-# data_path = os.path.join(rep_data,"well","well_example.csv")
-data_path = "/home/emmanuel/EQviewer/data/well/survey_proc2.xlsx"
-data = pd.read_excel(data_path)
-data = data.rename(columns={"MD (ft)":"MD",
-                            "Lon (°)":"longitude",
-                            "Lat (°)":"latitude",
-                            "Z (m)": "depth",
-                            "TVD (ft)":"TVD"})
+
+
+# # data_path = os.path.join(rep_data,"well","well_example.csv")
+# data_path = "/home/emmanuel/EQviewer/data/well/survey_proc2.xlsx"
+# data = pd.read_excel(data_path)
+# data = data.rename(columns={"MD (ft)":"MD",
+#                             "Lon (°)":"longitude",
+#                             "Lat (°)":"latitude",
+#                             "Z (m)": "depth",
+#                             "TVD (ft)":"TVD"})
+# # print(data)
+# injection = pd.read_csv("/home/emmanuel/EQviewer/data/well/CASTILLA_ft_ini.dat")
+# injection = injection.rename(columns={"min":"min_depth",
+#                                     "max":"max_depth",
+#                                     "water_flow":"measurement"})
+# injection = injection[injection["name"]=="CAD01"]
+# injection = injection[injection["name"]=="CAD01"]
+# # print(injection.info())
+# # exit()
 # print(data)
-injection = pd.read_csv("/home/emmanuel/EQviewer/data/well/CASTILLA_ft_ini.dat")
-injection = injection.rename(columns={"min":"min_depth",
-                                    "max":"max_depth"})
-injection = injection[injection["name"]=="CAD01"]
-injection = injection[injection["name"]=="CAD01"]
-# print(injection.info())
+# print(injection)
+# injection = Injection(injection,depth_type="MD",
+#                     # baseplot=BasePlot(cmap=True,
+#                     #                 style="g0.3")
+#                                     )
+
+# zmin = data.depth.min()
+#                 zmax = data.depth.max()
+#                 survey_cpt = CPT(color_target="depth",
+#                             label="depth",
+#                             cmap="rainbow",
+#                             series=[zmin,zmax],
+#                             reverse=True,
+#                             overrule_bg=True)
+# well = Well(data,"PAD",
+#             survey_baseplot = BasePlot(
+#                         # size=None,
+#                         # style="g0.05",
+#                         cmap=False,
+#                         color=None,
+#                         label=None,
+#                         transparency=None,
+#                         pen="1p"
+#                         ),
+#             injection=injection)
+# # print(well)
+# # print(well.data)
+# fig = well.plot()
+# fig.show()
+# # plt.show()
 # exit()
-print(injection)
-injection = Injection(injection,depth_type="MD")
-t = injection.get_injection_trajectories(data)
-print(t)
-# well = Well(data,"PAD",injection=injection)
-# print(well)
-# print(well.data)
-# well.matplot()
-# plt.show()
-exit()
 # wells = Wells(wells=[well],
 #                 injection_cmap=None)
 
 
-# lats = -5;latn = 15;lonw = -85;lone = -65 #castilla
-# cat_csv = os.path.join(rep_data,"earthquakes","events_20160101T20220901_NLLOC_ok.csv")
+lats = -5;latn = 15;lonw = -85;lone = -65 #castilla
+cat_csv = os.path.join(rep_data,"earthquakes","events_20160101T20220901_NLLOC_ok.csv")
 # tecto_shp = os.path.join(rep_data,"shapes","Tectónica.shp")
 
 
@@ -86,20 +111,86 @@ exit()
 
 
 
-# df = pd.read_csv(cat_csv)
-# df = df.drop_duplicates(subset="id",ignore_index=True)
-# events = equt.transform_to_fmt_catalog(cat_csv,
-#         columns={"time_event":"origin_time"})
-# reg = [lonw , lone, lats, latn ]
+df = pd.read_csv(cat_csv)
+df = df.drop_duplicates(subset="id",ignore_index=True)
+events = equt.transform_to_fmt_catalog(cat_csv,
+        columns={"time_event":"origin_time"})
 
-# baseplot = BasePlot(color = "lightblue",
-#                     style="cc",
-#                     size=lambda x: 0.11 * np.sqrt(1.2 ** (x.magnitude*1.4)),
-#                 #     style="c0.1c",
-#                 #     size=None,
-#                     cmap = True,
-#                     pen = "black")
-# catalog = Catalog(events,baseplot )
+df1 = events[events["origin_time"]<=dt.datetime(2022,1,1)]
+df2 = events[events["origin_time"]>=dt.datetime(2022,1,1)]
+reg = [lonw , lone, lats, latn ]
+baseplot2 = BasePlot(color = "lightblue",
+                    style="cc",
+                    size=lambda x: 0.11 * np.sqrt(1.2 ** (x.magnitude*1.4)),
+                #     style="c0.1c",
+                #     size=None,
+                    cmap = True,
+                    pen = "black")
+baseplot1 = BasePlot(color = "gray",
+                    style="cc",
+                    size=lambda x: 0.11 * np.sqrt(1.2 ** (x.magnitude*1.4)),
+                #     style="c0.1c",
+                #     size=None,
+                    cmap = False,
+                    pen = "black")
+catalog = Catalog(df1,baseplot1 )
+catalog2 = Catalog(df2,baseplot2 )
+profile = Profile(name=("A","A'"),      
+        coords=((-80,10),(-70,10)), 
+        width=(-300,300)
+            )
+baseprofile = BaseProfile(projection="X10/-10",
+                        depth_lims=[0,200],output_unit="km")
+
+# fig = catalog.plot_profile(profile,baseprofile,
+#                             depth_unit="km",
+#                             verbose=False)
+# fig = catalog2.plot_profile(profile,baseprofile,
+#                             depth_unit="km",fig=fig,
+#                             verbose=False)
+# fig.show()
+
+multicatalog = MulCatalog(catalogs=[catalog,catalog2],
+                            show_cpt=True)
+# print(multicatalog.__str__(True))
+fig = multicatalog.plot_profile(profile,baseprofile,
+                            depth_unit="km",
+                            verbose=False)
+fig.show()
+exit()
+# mulcatalog = MulCatalog([catalog])
+# fig = pygmt.Figure()
+# with fig.subplot(nrows=2, ncols=3, 
+#             subsize = ("12c", "12c"),
+#            margins=["3c", "-3.5c"],frame="lrtb"):
+#     for i in range(2):  # row number starting from 0
+#         for j in range(3):  # column number starting from 0
+#             index = i * 3 + j  # index number starting from 0
+#             with fig.set_panel(panel=index):  # sets the current panel
+#                 # fig.text(
+#                 #     position="MC",
+#                 #     text=f"index: {index}; row: {i}, col: {j}",
+#                 #     region=[0, 1, 0, 1],
+#                 # )
+#                 # p_o = aa.mul_objects[0]["p(o)"]
+#                 # fig = p_o.plot(fig=fig)
+#                 fig = catalog.plot_profile(profile,baseprofile,depth_unit="km",fig=fig,)
+#                 break
+# fig.show()
+# exit()               
+aa = Profile(name=("A","A'"),      
+        coords=((-80,10),(-70,10)), 
+        width=(-300,300)
+            )
+aa.add(catalog,depth_unit="km")
+
+
+
+p_o = aa.objects[0]["p(o)"]
+fig = p_o.plot()
+fig.show()
+# print(aa.objects)
+exit()
 # cat1 = catalog.copy()
 # cat1 = cat1.filter_datetime(starttime=dt.datetime(2022,1,1))
 # cat2 = catalog.copy()
