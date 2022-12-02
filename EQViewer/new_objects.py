@@ -262,6 +262,7 @@ class Catalog():
             raise Exception("No data in the catalog")
 
         self.baseplot = baseplot
+        self.profiles = []
 
     @property
     def empty(self):
@@ -472,10 +473,10 @@ class Catalog():
                                 3:"magnitude"})
         return projection
 
-    def plot(self,
+    def plot_map(self,
             cpt=None,
             show_cpt=True,
-            profiles=None,
+            profiles=[],
             fig=None):
         """
         Plot the catalog.
@@ -521,6 +522,31 @@ class Catalog():
             **info2pygmt
         )
 
+        for profile in profiles:
+            C,D = profile.coords
+            ul = ut.points_parallel_to_line(profile.coords,
+                                            abs(profile.width[0]))
+            cul,dul = ul
+            bl = ut.points_parallel_to_line(profile.coords,
+                                            abs(profile.width[1]),
+                                            upper_line=False)
+            cbl,dbl = bl
+            
+            fig.plot(x=[cbl[0], dbl[0],dul[0],cul[0],cbl[0]], 
+                    y=[cbl[1], dbl[1],dul[1],cul[1],cbl[1]],
+                    projection="M", pen=f"1.5p,{profile.colorline},4_2:2p")
+            ln,rn = profile.name
+            fig.text(x=C[0], y=C[1], text=f"{ln}",
+                    font=f"10p,Helvetica,black",
+                    pen="black",
+                    fill="white",offset="-0.05c/0.05c")
+                    # fill=None,offset="-0.05c/0.05c")
+            fig.text(x=D[0], y=D[1], text=f"{rn}",
+                    font=f"10p,Helvetica,black",
+                    pen="black",
+                    fill="white",offset="0.05c/0.05c")
+                    # fill=None,offset="0.05c/0.05c")
+
         return fig
 
     def plot_profile(self,profile,
@@ -529,6 +555,8 @@ class Catalog():
                     show_cpt=True,
                     fig=None,
                     verbose=True):
+
+
         startpoint = profile.coords[0]
         endpoint = profile.coords[1]
         baseprofile = profile.baseprofile
@@ -574,6 +602,13 @@ class Catalog():
         )
 
         return fig
+
+    # def plot_profiles(self,profiles,
+    #                 depth_unit,
+    #                 cpt=None,
+    #                 show_cpt=True,
+    #                 fig=None,
+    #                 verbose=True):
 
     def matplot(self,color_target="depth",
             s=8,cpt="viridis",show_cpt=True,
@@ -2617,9 +2652,129 @@ class Profile():
                 colorline="magenta") -> None:
         self.name = name
         self.coords = coords
+        self.startpoint = coords[0]
+        self.endpoint = coords[1]
         self.width = width
         self.baseprofile = baseprofile
         self.colorline = colorline
+        self.mulobjects = {}
+
+    def add_mulobject(self,mulobject,depth_unit,
+                            verbose=True ):
+        projections = mulobject.project(self.startpoint,self.endpoint,
+                                        self.width,verbose=verbose)
+        for projection in projections:
+            if depth_unit == "m":
+                projection["depth"] = projection["depth"]/1e3
+            if self.baseprofile.output_unit == "m":
+                projection["depth"] = projection["depth"]*1e3
+                projection["distance"] = projection["distance"]*1e3
+        
+        baseplots = [ x.baseplot for x in mulobject]
+
+        mulobject_name = mulobject.__class__.__name__
+        
+        info = {"projections":projections,"baseplots":baseplots,"cpt":mulobject.cpt,
+                "show_cpt":mulobject.show_cpt}
+        self.mulobjects[mulobject_name] = info
+
+    def plot_map(self,fig):
+        """
+        add profiles in figure
+        """
+        ul = ut.points_parallel_to_line(self.coords,
+                                        abs(self.width[0]))
+        cul,dul = ul
+        bl = ut.points_parallel_to_line(self.coords,
+                                        abs(self.width[1]),
+                                        upper_line=False)
+        cbl,dbl = bl
+        
+        fig.plot(x=[cbl[0], dbl[0],dul[0],cul[0],cbl[0]], 
+                y=[cbl[1], dbl[1],dul[1],cul[1],cbl[1]],
+                projection="M", pen=f"1.5p,{self.colorline},4_2:2p")
+        ln,rn = self.name
+        fig.text(x=self.startpoint[0], y=self.startpoint[1], text=f"{ln}",
+                font=f"10p,Helvetica,black",
+                pen="black",
+                fill="white",offset="-0.05c/0.05c")
+                # fill=None,offset="-0.05c/0.05c")
+        fig.text(x=self.endpoint[0], y=self.endpoint[1], text=f"{rn}",
+                font=f"10p,Helvetica,black",
+                pen="black",
+                fill="white",offset="0.05c/0.05c")
+                # fill=None,offset="0.05c/0.05c")
+
+        return fig
+
+    def plot_profile(self):
+
+        max_distance,a,ba = gps2dist_azimuth(self.startpoint[1],self.startpoint[0],
+                                            self.endpoint[1],self.endpoint[0])
+        basemap_args = self.baseprofile.get_basemap_args(max_distance)
+
+        fig = pygmt.Figure()
+        fig.basemap(**basemap_args)
+        mulobjects = self.mulobjects.items()
+
+        n_showed_cpt = 0
+        for mulobject_name, info in mulobjects:
+            if not info["cpt"]:
+                zmin = [x.depth.min() for x in info["projections"]]
+                zmax = [x.depth.max() for x in info["projections"]]
+                zmin = min(zmin)
+                zmax = min(zmax)
+                cpt = CPT(color_target="depth",
+                            label="Depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+            else:
+                cpt = info["cpt"]
+
+            show_cpt = False
+            for i,data in enumerate(info["projections"]):
+                info2pygmt = info["baseplots"][i].get_info2pygmt(data)
+                if info2pygmt["cmap"] == True:
+                    show_cpt = True
+                    info2pygmt["color"] = data[cpt.color_target]
+                pygmt.makecpt(**cpt.makecpt_kwargs)
+                fig.plot(x=data.distance,
+                        y=data.depth,
+                        **info2pygmt)
+
+                
+            if show_cpt:
+                n_showed_cpt += 1
+                if n_showed_cpt == 1: 
+                    if cpt.makecpt_kwargs["series"][1]/1e4 < 1:
+                        fig.colorbar(frame=f'af+l"{cpt.label}"',
+                                    position="JBC+e")
+                    else:
+                        print(cpt.makecpt_kwargs["series"][1]/1e4 )
+                        with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
+                            fig.colorbar(frame=f'af+l"{cpt.label}"',
+                                        position="JBC+e")
+
+                elif n_showed_cpt == 2: 
+                    if cpt.makecpt_kwargs["series"][1]/1e4 < 1:
+                        fig.colorbar(frame=["af",f'y+l{cpt.label}'],
+                                    position='JMR+o1c/0c+e')
+                    else:
+                        with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
+                            fig.colorbar(frame=["af",f'y+l{cpt.label}'],
+                                        position='JMR+o1c/0c+e')
+
+
+        return fig
+
+
+
+
+
+
+
 
 # class MulProfile():
 #     def __init__(self,profiles) -> None:
