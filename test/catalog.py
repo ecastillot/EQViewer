@@ -42,16 +42,41 @@ cat2 = Catalog(df2,baseplot2 )
 
 mulcatalog = MulCatalog([cat1,cat2])
 
+data_path = "/home/emmanuel/EQviewer/data/well/survey_proc2.xlsx"
+data = pd.read_excel(data_path)
+data = data.rename(columns={"MD (ft)":"MD",
+                            "Lon (°)":"longitude",
+                            "Lat (°)":"latitude",
+                            "Z (m)": "depth",
+                            "TVD (ft)":"TVD"})
+well = Well(data,"PAD",
+            survey_baseplot = BasePlot(
+                        # size=None,
+                        # style="g0.05",
+                        cmap=False,
+                        color=None,
+                        label=None,
+                        transparency=None,
+                        pen="1p"
+                        ))
+mulwell = MulWell([well])
 
 baseprofile = BaseProfile(projection="X10/-10",
                         depth_lims=[0,200],output_unit="km")
 profile = Profile(name=("A","A'"),      
-        coords=((-80,10),(-70,10)), 
+        coords=((-73.690175,3.869714),(-73.666203,3.895990)), 
+        # coords=((-80,10),(-70,10)), 
         width=(-300,300),
         baseprofile=baseprofile
             )
 
-profile.add_mulobject(mulcatalog,depth_unit="km")
+mapfig = mulcatalog.plot_map()
+profile.add_mulobject(mulcatalog,depth_unit="km",
+                    verbose=True)
+profile.add_mulobject(mulwell,depth_unit="m",
+                    verbose=True)
+mapfig = profile.plot_map(mapfig)
+mapfig.show()
 fig = profile.plot_profile()
 fig.show()
 # print(profile.projections)

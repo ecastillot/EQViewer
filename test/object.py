@@ -155,7 +155,7 @@ multicatalog = MulCatalog(catalogs=[catalog,catalog2],
 # print(multicatalog.__str__(True))
 fig = multicatalog.plot_profile(profile,baseprofile,
                             depth_unit="km",
-                            verbose=False)
+                            )
 fig.show()
 exit()
 # mulcatalog = MulCatalog([catalog])

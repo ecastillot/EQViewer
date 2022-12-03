@@ -668,6 +668,8 @@ class MulCatalog():
             list of Catalog objects
         cpt: None or CPT
             color palette table applied to the catalog
+        show_cpt: bool
+            Show color palette table.
         """
         self.catalogs = catalogs
         self.cpt = cpt
@@ -860,7 +862,7 @@ class MulCatalog():
 
         return region
 
-    def plot(self,profiles=None,fig=None):
+    def plot_map(self,fig=None):
 
         """
         Plot the catalog.
@@ -895,10 +897,10 @@ class MulCatalog():
         show_catalog_cpt = []
         for catalog in self.catalogs:
             if catalog.baseplot.cmap:
-                catalog.plot(fig=fig,cpt=self.cpt,show_cpt=False)
+                catalog.plot_map(fig=fig,cpt=self.cpt,show_cpt=False)
                 _show_cpt = True
             else:
-                catalog.plot(fig=fig,cpt=None,show_cpt=False)
+                catalog.plot_map(fig=fig,cpt=None,show_cpt=False)
                 _show_cpt = False
             show_catalog_cpt.append(_show_cpt)
 
@@ -2648,15 +2650,25 @@ class Well():
 
 class Profile():
     def __init__(self,name,coords,width,
-                baseprofile,
-                colorline="magenta") -> None:
+                baseprofile) -> None:
+        """
+        name: str
+            Name of the profile.
+        coords: 2d-tuple
+            2d-Tuple of two 2d-tuples.
+            ((ini_lon,ini_lat),(end_lon,end_lat))
+        width: 2d-tuple
+            (left_width,right_width) in km.
+        baseprofile: BaseProfile
+            To control profile axis    
+        """
+        
         self.name = name
         self.coords = coords
         self.startpoint = coords[0]
         self.endpoint = coords[1]
         self.width = width
         self.baseprofile = baseprofile
-        self.colorline = colorline
         self.mulobjects = {}
 
     def add_mulobject(self,mulobject,depth_unit,
@@ -2678,7 +2690,7 @@ class Profile():
                 "show_cpt":mulobject.show_cpt}
         self.mulobjects[mulobject_name] = info
 
-    def plot_map(self,fig):
+    def plot_map(self,fig,colorline="magenta"):
         """
         add profiles in figure
         """
@@ -2692,7 +2704,7 @@ class Profile():
         
         fig.plot(x=[cbl[0], dbl[0],dul[0],cul[0],cbl[0]], 
                 y=[cbl[1], dbl[1],dul[1],cul[1],cbl[1]],
-                projection="M", pen=f"1.5p,{self.colorline},4_2:2p")
+                pen=f"1.5p,{colorline},4_2:2p")
         ln,rn = self.name
         fig.text(x=self.startpoint[0], y=self.startpoint[1], text=f"{ln}",
                 font=f"10p,Helvetica,black",
@@ -2752,7 +2764,6 @@ class Profile():
                         fig.colorbar(frame=f'af+l"{cpt.label}"',
                                     position="JBC+e")
                     else:
-                        print(cpt.makecpt_kwargs["series"][1]/1e4 )
                         with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
                             fig.colorbar(frame=f'af+l"{cpt.label}"',
                                         position="JBC+e")
@@ -2948,18 +2959,175 @@ class Profile():
 #             object.plot(fig=fig)
 
 class MulWell():
-    def __init__(self,wells=[],cbar = None):
+    def __init__(self,wells=[],cpt=None,show_cpt=True):
         """
         Parameters:
         -----------
         wells: list
             list of Well objects
-        cbar: Cbar object
-            Colorbar applied.
+        cpt: None or CPT
+            color palette table applied to the catalog
+        show_cpt: bool
+            Show color palette table.
         """
         self.wells = wells
-        self.cbar = cbar
+        self.cpt = cpt
+        self.show_cpt = show_cpt
         
+    def __iter__(self):
+        return list(self.wells).__iter__()
+
+    def __nonzero__(self):
+        return bool(len(self.wells))
+
+    def __len__(self):
+        return len(self.wells)
+
+    def __str__(self,extended=False) -> str:
+        msg = f"MulWell ({self.__len__()} wells)\n"
+        msg += "-"*len(msg) 
+
+        submsgs = []
+        for i,well in enumerate(self.__iter__(),1):
+            submsg = f"{i}. "+well.__str__(extended=extended)
+            submsgs.append(submsg)
+                
+        if len(self.wells)<=20 or extended is True:
+            submsgs = "\n".join(submsgs)
+        else:
+            three_first_submsgs = submsgs[0:3]
+            last_two_subsgs = submsgs[-2:]
+            len_others = len(self.wells) -len(three_first_submsgs) - len(last_two_subsgs)
+            submsgs = "\n".join(three_first_submsgs+\
+                                [f"...{len_others} other wells..."]+\
+                                last_two_subsgs)
+
+        return msg+ "\n" +submsgs
+    
+    def __setitem__(self, index, trace):
+        self.wells.__setitem__(index, trace)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(wells=self.wells.__getitem__(index))
+        else:
+            return self.wells.__getitem__(index)
+
+    def __delitem__(self, index):
+        return self.wells.__delitem__(index)
+
+    def __getslice__(self, i, j, k=1):
+        return self.__class__(wells=self.wells[max(0, i):max(0, j):k])
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
+    def append(self, well):
+        """
+        append a well
+        """
+        if isinstance(well, Well):
+            self.wells.append(well)
+        else:
+            msg = 'Append only supports a single Catalog object as an argument.'
+            raise TypeError(msg)
+        return self
+
+    def project(self,startpoint,endpoint,
+                width,verbose=True):
+        projections = []
+        for well in self.wells:
+            projection = well.project(startpoint,endpoint,
+                                            width,verbose)
+            projections.append(projection)
+        return projections
+
+    def get_region(self,padding=[]):
+        """
+        It gets the region according to the limits of all events as a whole
+
+        Parameters:
+        -----------
+        padding: 4D-list or float or int
+            list: Padding on each side of the region [lonw,lonw,lats,latn] in degrees.
+            float or int: padding amount on each side of the region from 0 to 1,
+                        where 1 is considered the distance on each side of the region.
+        """
+        lons,lats = [],[]
+        for well in self.wells:
+            region = well.get_region()
+            lons.append(region[0:2])
+            lats.append(region[2:])
+        lons = [ x for sublist in lons for x in sublist]
+        lats = [ x for sublist in lats for x in sublist]
+        region = [min(lons),max(lons),min(lats),max(lats)]
+
+        if isinstance(padding,list):
+            if padding:
+                if len(padding) != 4:
+                    raise Exception("Padding parameter must be 4D")
+                else:
+                    region = list( map(add, region, padding) )
+        elif isinstance(padding,float) or isinstance(padding,int):
+            lon_distance = abs(region[1]-region[0])
+            lat_distance = abs(region[3]-region[2])
+            adding4lon = lon_distance*padding
+            adding4lat = lat_distance*padding
+            padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
+            region = list( map(add, region, padding) )
+
+        return region
+
+    def plot_map(self,fig=None):
+
+        """
+        Plot the catalog.
+
+        Parameters:
+        -----------
+        fig: None or pygmt.Figure
+            Basemap figure
+        """
+
+        if fig == None:
+            fig = pygmt.Figure() 
+            fig.basemap(region=self.get_region(padding=0.1),
+                        projection="M12c", 
+                        frame=["afg","WNse"])
+        if self.cpt == None:
+            data = []
+            for well in self.wells:
+                if well.baseplot.cmap:
+                    data.append(well.data)
+            if data:
+                data = pd.concat(data)
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                self.cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+
+        show_well_cpt = []
+        for well in self.wells:
+            if well.baseplot.cmap:
+                well.plot_map(fig=fig,cpt=self.cpt,show_cpt=False)
+                _show_cpt = True
+            else:
+                well.plot_map(fig=fig,cpt=None,show_cpt=False)
+                _show_cpt = False
+            show_well_cpt.append(_show_cpt)
+
+        if any(show_well_cpt):
+            if self.show_cpt:
+                fig.colorbar(frame=f'af+l"{self.cpt.label}"',
+                        position="JBC+e")
+
+        return fig
+
 class MulProfile():
     def __init__(self,profiles=[]):
         """
