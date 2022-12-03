@@ -2526,7 +2526,7 @@ class Well():
 
         return projection
 
-    def plot(self,fig=None,
+    def plot_map(self,fig=None,
             survey_cpt=None,
             show_survey_cpt=True,
             injection_cpt=None,
@@ -3098,7 +3098,7 @@ class MulWell():
         if self.cpt == None:
             data = []
             for well in self.wells:
-                if well.baseplot.cmap:
+                if well.survey_baseplot.cmap:
                     data.append(well.data)
             if data:
                 data = pd.concat(data)
@@ -3113,8 +3113,8 @@ class MulWell():
 
         show_well_cpt = []
         for well in self.wells:
-            if well.baseplot.cmap:
-                well.plot_map(fig=fig,cpt=self.cpt,show_cpt=False)
+            if well.survey_baseplot.cmap:
+                well.plot_map(fig=fig,survey_cpt=self.cpt,show_cpt=False)
                 _show_cpt = True
             else:
                 well.plot_map(fig=fig,cpt=None,show_cpt=False)

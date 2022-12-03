@@ -60,6 +60,9 @@ well = Well(data,"PAD",
                         pen="1p"
                         ))
 mulwell = MulWell([well])
+wellfig = mulwell.plot_map()
+wellfig.show()
+
 
 baseprofile = BaseProfile(projection="X10/-10",
                         depth_lims=[0,200],output_unit="km")
