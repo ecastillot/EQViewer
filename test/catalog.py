@@ -23,7 +23,7 @@ events = events.rename(columns={"Origin time":"origin_time",
                                 "Latitude (deg)":"latitude",
                                 "Longitude (deg)":"longitude"})
 events["origin_time"] = pd.to_datetime(events['origin_time']).dt.tz_localize(None)
-
+events = events[events["depth"]<=3e3]
 # cat_csv = os.path.join(rep_data,"earthquakes",
 #                         "events_20160101T20220901.csv")
 # events = pd.read_csv(cat_csv)
@@ -51,7 +51,7 @@ cat1 = Catalog(df1,baseplot1 )
 cat2 = Catalog(df2,baseplot2 )
 
 mulcatalog = MulCatalog([cat1,cat2])
-
+print(mulcatalog.__str__(True))
 data_path = "/home/emmanuel/EQviewer/data/well/survey_proc2.xlsx"
 data = pd.read_excel(data_path)
 data = data.rename(columns={"MD (ft)":"MD",

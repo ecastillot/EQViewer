@@ -2834,10 +2834,12 @@ class Profile():
                                 reverse=True,
                                 overrule_bg=True)
                 else:
+                    print(mulobject_name,info["projections"])
                     zmin = [x.depth.min() for x in info["projections"]]
                     zmax = [x.depth.max() for x in info["projections"]]
                     zmin = min(zmin)
                     zmax = max(zmax)
+                    print(zmin,zmax)
                     cpt = CPT(color_target="depth",
                                 label="Depth",
                                 cmap="rainbow",
