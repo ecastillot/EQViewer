@@ -2766,13 +2766,13 @@ class Profile():
                 projection["depth"] = projection["depth"]*1e3
                 projection["distance"] = projection["distance"]*1e3
         
-        baseplots = [ x.injection.baseplot for x in mulcatalog]
+        baseplots = [ x.baseplot for x in mulcatalog]
         
         info = {"projections":projections,"baseplots":baseplots,"cpt":mulcatalog.cpt,
                 "show_cpt":mulcatalog.show_cpt}
 
 
-        self.mulcatalogs[mulcatalog_name] = info
+        self.mulobjects[mulcatalog_name] = info
 
     def add_mulobject(self,mulobject,depth_unit,verbose=True):
         mulcatalog_name = mulobject.__class__.__name__
@@ -2821,15 +2821,12 @@ class Profile():
 
         n_showed_cpt = 0
         for mulobject_name, info in mulobjects:
-            print(mulobject_name, info)
             if not info["cpt"]:
                 if mulobject_name == "Injection":
-                    print(info["projections"])
                     zmin = [x.measurement.min() for x in info["projections"]]
                     zmax = [x.measurement.max() for x in info["projections"]]
                     zmin = min(zmin)
                     zmax = max(zmax)
-                    print(zmin,zmax)
                     cpt = CPT(color_target="measurement",
                                 label="measurement",
                                 cmap="cool",

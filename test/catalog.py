@@ -115,8 +115,8 @@ profile = Profile(name=("A","A'"),
 # wellfig.show()
 
 # w.show()
-# profile.add_mulobject(mulcatalog,depth_unit="m",
-#                     verbose=True)
+profile.add_mulobject(mulcatalog,depth_unit="m",
+                    verbose=True)
 profile._add_mulwell(mulwell,depth_unit="m",
                     verbose=True)
 # x = profile.plot_map(mapfig)
