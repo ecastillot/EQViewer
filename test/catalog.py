@@ -23,7 +23,7 @@ events = events.rename(columns={"Origin time":"origin_time",
                                 "Latitude (deg)":"latitude",
                                 "Longitude (deg)":"longitude"})
 events["origin_time"] = pd.to_datetime(events['origin_time']).dt.tz_localize(None)
-events = events[events["depth"]<=3e3]
+# events = events[events["depth"]<=3e3]
 # cat_csv = os.path.join(rep_data,"earthquakes",
 #                         "events_20160101T20220901.csv")
 # events = pd.read_csv(cat_csv)
@@ -51,6 +51,7 @@ cat1 = Catalog(df1,baseplot1 )
 cat2 = Catalog(df2,baseplot2 )
 
 mulcatalog = MulCatalog([cat1,cat2])
+mulcatalog.filter("depth",0,3e3)
 print(mulcatalog.__str__(True))
 data_path = "/home/emmanuel/EQviewer/data/well/survey_proc2.xlsx"
 data = pd.read_excel(data_path)
@@ -99,27 +100,29 @@ well = Well(data,"PAD",
 mulwell = MulWell([well])
 # fig = mulwell.plot_map()
 # fig.show()
-baseprofile = BaseProfile(projection="X10/-10",
+baseprofile = BaseProfile(
+                        projection="x0.002c/-0.002",
+                        # projection="X10/-10",
                         depth_lims=[0,3e3],output_unit="m")
 profile = Profile(name=("A","A'"),      
         coords=((-73.67,3.82),(-73.66,3.81)), 
         # coords=((-73.690175,3.869714),(-73.666203,3.895990)), 
         # coords=((-80,10),(-70,10)), 
-        width=(-10,10),
+        width=(-0.1,0.1),
+        # width=(-10,10),
         baseprofile=baseprofile
             )
 
-# wellfig = mulwell.plot_map()
-# wellfig = mulcatalog.plot_map(fig = wellfig )
-# wellfig = profile.plot_in_map(wellfig )
-# wellfig.show()
+wellfig = mulwell.plot_map()
+wellfig = mulcatalog.plot_map(fig = wellfig )
+wellfig = profile.plot_in_map(wellfig )
+wellfig.show()
 
 # w.show()
 profile.add_mulobject(mulcatalog,depth_unit="m",
                     verbose=True)
 profile._add_mulwell(mulwell,depth_unit="m",
                     verbose=True)
-# x = profile.plot_map(mapfig)
 fig = profile.plot_profile()
 fig.show()
 # print(profile.projections)

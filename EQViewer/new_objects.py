@@ -358,35 +358,22 @@ class Catalog():
         self.data = self.data.sort_values(**args)
         return self
 
-    def filter_datetime(self,starttime=None,endtime=None):
+    def filter(self,key,start=None,end=None):
         """
-        Filter the period of the catalog.
+        Filter data of the catalog.
 
         Parameters:
         -----------
-        starttime: datetime.datetime
-            start time
-        endtime: datetime.datetime
-            end time
+        key: str
+            Name of the column to filter
+        start: int or float or datetime.datetime
+            must be the same type as data[key] does
+        end: int or float or datetime.datetime
+            must be the same type as data[key] does
         
         """
-        if starttime != None and \
-            not isinstance(starttime,dt.datetime):
-            raise Exception("starttime must be a datetime object")
-
-        if endtime != None and \
-            not isinstance(endtime,dt.datetime):
-            raise Exception("starttime must be a datetime object")
-
-        if isinstance(starttime,dt.datetime) \
-            and isinstance(endtime,dt.datetime):
-            if endtime < starttime:
-                raise Exception("endtime must be greater than starttime")
-
-        if isinstance(starttime,dt.datetime):
-            self.data = self.data[self.data["origin_time"]>=starttime]
-        if isinstance(endtime,dt.datetime):
-            self.data = self.data[self.data["origin_time"]<=endtime]
+        self.data = self.data[self.data[key]>=start]
+        self.data = self.data[self.data[key]<=end]
         return self
 
     def filter_region(self,polygon):
@@ -798,21 +785,23 @@ class MulCatalog():
         self.catalogs = catalogs
         return self
     
-    def filter_datetime(self,starttime=None,endtime=None):
+    def filter(self,key,start=None,end=None):
         """
-        Filter the period of the catalog.
+        Filter data of the catalog.
 
         Parameters:
         -----------
-        starttime: datetime.datetime
-            start time
-        endtime: datetime.datetime
-            end time
+        key: str
+            Name of the column to filter
+        start: int or float or datetime.datetime
+            must be the same type as data[key] does
+        end: int or float or datetime.datetime
+            must be the same type as data[key] does
         
         """
         catalogs = []
         for catalog in self.catalogs:
-            catalogs.append(catalog.filter_datetime(starttime,endtime))
+            catalogs.append(catalog.filter(key,start,end))
         self.catalogs = catalogs
         return self
 
@@ -2605,10 +2594,6 @@ class Well():
             if show_survey_cpt:
                 fig.colorbar(frame=f'af+l"{survey_cpt.label}"',
                         position="JBC+e")
-        # fig.plot(
-        #     x=data.longitude,
-        #     y=data.latitude,
-        # )
         fig.plot(
             x=data.longitude,
             y=data.latitude,
@@ -2739,9 +2724,6 @@ class Profile():
             survey_baseplots.append(well.baseplot)
             trajectories.append(trajectory)
 
-        # survey_baseplots = [ x.baseplot for x in mulwell]
-        # inj_baseplots = [ x.injection.baseplot for x in mulwell]
-
         survey_info = {"projections":trajectories,"baseplots":survey_baseplots,
                 "cpt":mulwell.survey_cpt,
                 "show_cpt":mulwell.show_survey_cpt}
@@ -2780,7 +2762,6 @@ class Profile():
             self._add_mulwell(mulobject,depth_unit,verbose)
         elif mulcatalog_name == "MulCatalog":
             self._add_catalog(mulobject,depth_unit,verbose)
-
 
     def plot_in_map(self,fig,colorline="magenta"):
         """
@@ -2825,6 +2806,8 @@ class Profile():
                 if mulobject_name == "Injection":
                     zmin = [x.measurement.min() for x in info["projections"]]
                     zmax = [x.measurement.max() for x in info["projections"]]
+                    if (not zmin) or (not zmax):
+                        continue
                     zmin = min(zmin)
                     zmax = max(zmax)
                     cpt = CPT(color_target="measurement",
@@ -2834,12 +2817,12 @@ class Profile():
                                 reverse=True,
                                 overrule_bg=True)
                 else:
-                    print(mulobject_name,info["projections"])
                     zmin = [x.depth.min() for x in info["projections"]]
                     zmax = [x.depth.max() for x in info["projections"]]
+                    if (not zmin) or (not zmax):
+                        continue
                     zmin = min(zmin)
                     zmax = max(zmax)
-                    print(zmin,zmax)
                     cpt = CPT(color_target="depth",
                                 label="Depth",
                                 cmap="rainbow",
@@ -2851,6 +2834,8 @@ class Profile():
 
             show_cpt = False
             for i,data in enumerate(info["projections"]):
+                if data.empty:
+                    continue
                 info2pygmt = info["baseplots"][i].get_info2pygmt(data)
                 if info2pygmt["cmap"] == True:
                     show_cpt = True
