@@ -2369,8 +2369,6 @@ class Injection():
         # else:
         #     injection_trajectories = pd.concat(injection_trajectories)
         # return injection_trajectories
-        
-
 
 class Well():
     def __init__(self,data,name,
@@ -2476,7 +2474,7 @@ class Well():
         return self
     
     def project(self,startpoint,endpoint,
-                width,verbose=True):
+                width,with_injection=True,verbose=True):
         """
         Project data onto a line
 
@@ -2488,7 +2486,13 @@ class Well():
             (lon,lat)
         width: tuple
             (w_left,w_right)
-        
+        with_injection: bool
+            True if want to get the multiple projected segments with injection
+        Returns:
+            if with_injection==False -> pd.Dataframe related to the projected trajectory
+            else: tuple -> (pd.dataframe,list of pd.dataframes)
+                the first dataframe is related to the projected trajectory
+                the list of dataframes is related to the multiple projected segments with injection
         """
         data = self.data
         try:
@@ -2518,11 +2522,35 @@ class Well():
         except:
             projection = pd.DataFrame(columns =["distance","depth"])
 
-        return projection
+        if with_injection:
+            if not self.injection:
+                return projection
+            elif len(projection) <2:
+                return (projection,[])
+
+            else:
+                depth = projection["depth"].to_numpy()
+                distance = projection["distance"].to_numpy()
+                f_depth2distance= interpolate.interp1d(depth, distance,
+                                                        kind="linear",
+                                                        fill_value="extrapolate")
+
+                injection_trajectories = self.injection._get_injection_trajectories(data)
+                inj_projections = []
+                for inj_trajectory in injection_trajectories:
+                    inj_depth = inj_trajectory["depth"].to_numpy()
+                    inj_distance = f_depth2distance(inj_depth)
+                    inj_projection = pd.DataFrame({"distance":inj_distance,
+                                                    "depth":inj_depth})
+                    inj_projections.append(inj_projection)
+
+                    
+                return (projection,inj_projections)
 
     def plot_map(self,fig=None,
             survey_cpt=None,
             show_survey_cpt=True,
+            with_injection=True,
             injection_cpt=None,
             show_injection_cpt=True):
         """
@@ -2552,7 +2580,7 @@ class Well():
                 zmax = data.depth.max()
                 survey_cpt = CPT(color_target="depth",
                             label="depth",
-                            cmap="rainbow",
+                            cmap="roma",
                             series=[zmin,zmax],
                             reverse=True,
                             overrule_bg=True)
@@ -2563,34 +2591,35 @@ class Well():
             if show_survey_cpt:
                 fig.colorbar(frame=f'af+l"{survey_cpt.label}"',
                         position="JBC+e")
-        
+        fig.plot(
+            x=data.longitude,
+            y=data.latitude,
+        )
         fig.plot(
             x=data.longitude,
             y=data.latitude,
             **survey_info2pygmt
         )
 
-        if self.injection != None:
+        if (self.injection != None) and (with_injection == True):
 
             injection_trajectories = self.injection._get_injection_trajectories(data)
             
             all_injection = pd.concat(injection_trajectories)
             injection_info2pygmt = self.injection.baseplot.get_info2pygmt(data)
-            print(injection_info2pygmt)
             if self.injection.baseplot.cmap:
 
                 if (injection_cpt == None) and \
                     ("measurement" in all_injection.columns.to_list()):
                     zmin = all_injection.measurement.min()
                     zmax = all_injection.measurement.max()
-                    print(zmin,zmax)
                     injection_cpt = CPT(color_target="measurement",
                                 label="measurement",
                                 cmap="cool",
                                 series=[zmin,zmax],
                                 reverse=True,
                                 overrule_bg=True)
-                # print(all_injection )
+
                 injection_info2pygmt["color"] = all_injection[injection_cpt.color_target].to_numpy()
                 pygmt.makecpt(**injection_cpt.makecpt_kwargs)
         
@@ -2657,8 +2686,19 @@ class Profile():
 
     def add_mulobject(self,mulobject,depth_unit,
                             verbose=True ):
-        projections = mulobject.project(self.startpoint,self.endpoint,
+        mulobject_name = mulobject.__class__.__name__
+
+        if mulobject == "MulWell":
+            proj_inj = mulobject.project(startpoint=self.startpoint,
+                                        endpoint=self.endpoint,
+                                        width=self.width,
+                                        with_injection=True,
+                                        verbose=verbose)
+        else:
+            projections = mulobject.project(self.startpoint,self.endpoint,
                                         self.width,verbose=verbose)
+            # injections = []
+
         for projection in projections:
             if depth_unit == "m":
                 projection["depth"] = projection["depth"]/1e3
@@ -2666,7 +2706,6 @@ class Profile():
                 projection["depth"] = projection["depth"]*1e3
                 projection["distance"] = projection["distance"]*1e3
         
-        mulobject_name = mulobject.__class__.__name__
 
         baseplots = [ x.baseplot for x in mulobject]
 
@@ -2942,7 +2981,11 @@ class Profile():
 #             object.plot(fig=fig)
 
 class MulWell():
-    def __init__(self,wells=[],cpt=None,show_cpt=True):
+    def __init__(self,wells=[],
+                survey_cpt=None,
+                show_survey_cpt=True,
+                injection_cpt=None,
+                show_injection_cpt=True):
         """
         Parameters:
         -----------
@@ -2954,9 +2997,11 @@ class MulWell():
             Show color palette table.
         """
         self.wells = wells
-        self.cpt = cpt
-        self.show_cpt = show_cpt
-        
+        self.survey_cpt=survey_cpt
+        self.show_survey_cpt=show_survey_cpt
+        self.injection_cpt=injection_cpt
+        self.show_injection_cpt=show_injection_cpt
+
     def __iter__(self):
         return list(self.wells).__iter__()
 
@@ -3018,11 +3063,11 @@ class MulWell():
         return self
 
     def project(self,startpoint,endpoint,
-                width,verbose=True):
+                width,with_injection=True,verbose=True):
         projections = []
         for well in self.wells:
             projection = well.project(startpoint,endpoint,
-                                            width,verbose)
+                                    width,with_injection,verbose)
             projections.append(projection)
         return projections
 
@@ -3062,7 +3107,7 @@ class MulWell():
 
         return region
 
-    def plot_map(self,fig=None):
+    def plot_map(self,fig=None,with_injection=True):
 
         """
         Plot the catalog.
@@ -3078,7 +3123,8 @@ class MulWell():
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["afg","WNse"])
-        if self.cpt == None:
+
+        if self.survey_cpt == None:
             data = []
             for well in self.wells:
                 if well.baseplot.cmap:
@@ -3087,28 +3133,73 @@ class MulWell():
                 data = pd.concat(data)
                 zmin = data.depth.min()
                 zmax = data.depth.max()
-                self.cpt = CPT(color_target="depth",
+                self.survey_cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
+        if self.injection_cpt == None:
+            data = []
+            for well in self.wells:
+                if well.injection.baseplot.cmap:
+                    data.append(well.injection.data)
+            if data:
+                data = pd.concat(data)
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                self.injection_cpt = CPT(color_target="depth",
                             label="depth",
                             cmap="rainbow",
                             series=[zmin,zmax],
                             reverse=True,
                             overrule_bg=True)
 
-        show_well_cpt = []
+        show_survey_cpt = []
+        show_injection_cpt = []
         for well in self.wells:
             if well.baseplot.cmap:
-                well.plot_map(fig=fig,survey_cpt=self.cpt,show_survey_cpt=False)
-                _show_cpt = True
+                if well.injection.baseplot.cmap:
+                    well.plot_map(fig=fig,survey_cpt=self.survey_cpt,show_survey_cpt=False,
+                                with_injection=with_injection,injection_cpt=self.injection_cpt,
+                                show_injection_cpt=False)
+                    _show_injection_cpt = True
+                else:
+                    well.plot_map(fig=fig,survey_cpt=self.survey_cpt,show_survey_cpt=False,
+                                with_injection=with_injection,injection_cpt=None,
+                                show_injection_cpt=False)
+                    _show_injection_cpt = False
+                _show_survey_cpt = True
             else:
-                well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False)
-                _show_cpt = False
-            show_well_cpt.append(_show_cpt)
+                well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
+                            with_injection=with_injection)
+                
+                if well.injection.baseplot.cmap:
+                    well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
+                                with_injection=with_injection,injection_cpt=self.injection_cpt,
+                                show_injection_cpt=False)
+                    _show_injection_cpt = True
+                else:
+                    well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
+                                with_injection=with_injection,injection_cpt=None,
+                                show_injection_cpt=False)
+                    _show_injection_cpt = False
 
-        if any(show_well_cpt):
-            if self.show_cpt:
-                fig.colorbar(frame=f'af+l"{self.cpt.label}"',
+                _show_survey_cpt = False
+            show_survey_cpt.append(_show_survey_cpt)
+            show_injection_cpt.append(_show_injection_cpt)
+
+        if any(show_survey_cpt):
+            if self.show_survey_cpt:
+                pygmt.makecpt(**self.survey_cpt.makecpt_kwargs)
+                fig.colorbar(frame=f'af+l"{self.survey_cpt.label}"',
                         position="JBC+e")
-
+        if any(show_injection_cpt):
+            if self.show_injection_cpt:
+                pygmt.makecpt(**self.injection_cpt.makecpt_kwargs)
+                with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
+                    fig.colorbar(frame=["af",f'y+l{self.injection_cpt.label}'],
+                    position='JMR+o1c/0c+e')
         return fig
 
 class MulProfile():

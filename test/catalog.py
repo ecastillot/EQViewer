@@ -80,16 +80,18 @@ injection = Injection(injection,depth_type="MD",
 well = Well(data,"PAD",
             baseplot = BasePlot(
                         # size=None,
-                        # style="g0.05",
-                        cmap=False,
+                        style="c0.5",
+                        cmap=True,
                         color=None,
                         label=None,
                         transparency=None,
-                        pen="1p"
+                        # pen="1p"
                         ),
             injection=injection
                         
                 )
+# p = well.project((-73.67,3.82),(-73.66,3.81),(-0.1,0.1),with_injection=True)
+# print(p)
 wellfig = well.plot_map()
 wellfig.show()
 
