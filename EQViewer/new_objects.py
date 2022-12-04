@@ -2374,7 +2374,7 @@ class Injection():
 
 class Well():
     def __init__(self,data,name,
-                survey_baseplot = BasePlot(
+                baseplot = BasePlot(
                         # size=None,
                         style="g0.3",
                         cmap=True,
@@ -2383,14 +2383,6 @@ class Well():
                         transparency=0,
                         pen=f"+0.0001p+i"),
                 injection = None,
-                injection_baseplot = BasePlot(
-                        size=None,
-                        style="g0.3",
-                        cmap=False,
-                        color="blue",
-                        label="data",
-                        transparency=80),
-
                 ) -> None:
         """
         Parameters:
@@ -2400,15 +2392,10 @@ class Well():
             'latitude','longitude','depth','TVD','MD'
         name: str
             Name of the well
-        survey_baseplot: BasePlot
+        baseplot: BasePlot
             Control survey plot args
-        injection: pd.DataFrame
-            Dataframe with the next mandatory columns:
-            'min_depth','max_depth','depth_type',
-            optional:
-            'water_flow'
-        injection_baseplot: BasePlot
-            Control injection plot args
+        injection: Injection
+            injection measurement
         """
         self.columns = ['longitude','latitude','depth','TVD','MD']
         check =  all(item in data.columns.to_list() for item in self.columns)
@@ -2417,10 +2404,8 @@ class Well():
                             +"->'longitude','latitude','depth','TVD','MD'")
         self.data = data.sort_values("depth")
         self.name = name
-        self.survey_baseplot = survey_baseplot
+        self.baseplot = baseplot
         self.injection = injection
-        self.injection_baseplot = injection_baseplot
-
         
     @property
     def empty(self):
@@ -2560,8 +2545,8 @@ class Well():
                         projection="M12c", 
                         frame=["afg","WNse"])
         
-        survey_info2pygmt = self.survey_baseplot.get_info2pygmt(data)
-        if self.survey_baseplot.cmap:
+        survey_info2pygmt = self.baseplot.get_info2pygmt(data)
+        if self.baseplot.cmap:
             if survey_cpt == None:
                 zmin = data.depth.min()
                 zmax = data.depth.max()
@@ -2590,7 +2575,7 @@ class Well():
             injection_trajectories = self.injection._get_injection_trajectories(data)
             
             all_injection = pd.concat(injection_trajectories)
-            injection_info2pygmt = self.injection_baseplot.get_info2pygmt(data)
+            injection_info2pygmt = self.injection.baseplot.get_info2pygmt(data)
             print(injection_info2pygmt)
             if self.injection.baseplot.cmap:
 
@@ -2602,7 +2587,7 @@ class Well():
                     injection_cpt = CPT(color_target="measurement",
                                 label="measurement",
                                 cmap="cool",
-                                series=[zmin,zmax,(zmax-zmin)/5],
+                                series=[zmin,zmax],
                                 reverse=True,
                                 overrule_bg=True)
                 # print(all_injection )
@@ -2683,10 +2668,7 @@ class Profile():
         
         mulobject_name = mulobject.__class__.__name__
 
-        if mulobject_name == "MulWell":
-            baseplots = [ x.survey_baseplot for x in mulobject]
-        else:
-            baseplots = [ x.baseplot for x in mulobject]
+        baseplots = [ x.baseplot for x in mulobject]
 
         
         info = {"projections":projections,"baseplots":baseplots,"cpt":mulobject.cpt,
@@ -3099,7 +3081,7 @@ class MulWell():
         if self.cpt == None:
             data = []
             for well in self.wells:
-                if well.survey_baseplot.cmap:
+                if well.baseplot.cmap:
                     data.append(well.data)
             if data:
                 data = pd.concat(data)
@@ -3114,7 +3096,7 @@ class MulWell():
 
         show_well_cpt = []
         for well in self.wells:
-            if well.survey_baseplot.cmap:
+            if well.baseplot.cmap:
                 well.plot_map(fig=fig,survey_cpt=self.cpt,show_survey_cpt=False)
                 _show_cpt = True
             else:

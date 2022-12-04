@@ -74,10 +74,11 @@ injection = injection[injection["name"]=="CAD01"]
 print(injection)
 injection = Injection(injection,depth_type="MD",
                     baseplot=BasePlot(cmap=True,
+                                color="blue",
                                     style="g0.3")
                                     )
 well = Well(data,"PAD",
-            survey_baseplot = BasePlot(
+            baseplot = BasePlot(
                         # size=None,
                         # style="g0.05",
                         cmap=False,
@@ -89,12 +90,7 @@ well = Well(data,"PAD",
             injection=injection
                         
                 )
-wellfig = well.plot_map(injection_cpt=CPT(color_target="measurement",
-                                label="measurement",
-                                cmap="cool",
-                                series=[0,4e4,4e4/5],
-                                reverse=True,
-                                overrule_bg=True))
+wellfig = well.plot_map()
 wellfig.show()
 
 exit()
