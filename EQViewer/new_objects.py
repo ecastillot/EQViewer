@@ -2529,6 +2529,11 @@ class Well():
                 return (projection,[])
 
             else:
+                min_distance = projection["distance"].min()
+                max_distance = projection["distance"].max()
+                min_depth = projection["depth"].min()
+                max_depth = projection["depth"].max()
+
                 depth = projection["depth"].to_numpy()
                 distance = projection["distance"].to_numpy()
                 f_depth2distance= interpolate.interp1d(depth, distance,
@@ -2538,10 +2543,19 @@ class Well():
                 injection_trajectories = self.injection._get_injection_trajectories(data)
                 inj_projections = []
                 for inj_trajectory in injection_trajectories:
+                    measurement = inj_trajectory["measurement"].to_numpy()
                     inj_depth = inj_trajectory["depth"].to_numpy()
                     inj_distance = f_depth2distance(inj_depth)
                     inj_projection = pd.DataFrame({"distance":inj_distance,
-                                                    "depth":inj_depth})
+                                                    "depth":inj_depth,
+                                                    "measurement":measurement})
+
+                    inj_projection = inj_projection[ (inj_projection["distance"] >= min_distance) &
+                                                    (inj_projection["distance"] <= max_distance) &  
+                                                    (inj_projection["depth"] >= min_depth) & 
+                                                    (inj_projection["depth"] <= max_depth) ]
+                    if inj_projection.empty:
+                        continue
                     inj_projections.append(inj_projection)
 
                     
@@ -2591,10 +2605,10 @@ class Well():
             if show_survey_cpt:
                 fig.colorbar(frame=f'af+l"{survey_cpt.label}"',
                         position="JBC+e")
-        fig.plot(
-            x=data.longitude,
-            y=data.latitude,
-        )
+        # fig.plot(
+        #     x=data.longitude,
+        #     y=data.latitude,
+        # )
         fig.plot(
             x=data.longitude,
             y=data.latitude,
@@ -2684,20 +2698,66 @@ class Profile():
         self.baseprofile = baseprofile
         self.mulobjects = {}
 
-    def add_mulobject(self,mulobject,depth_unit,
-                            verbose=True ):
-        mulobject_name = mulobject.__class__.__name__
+    def _add_mulwell(self,mulwell,depth_unit,verbose=True):
+        mulwell_name = mulwell.__class__.__name__
+        projected_data = mulwell.project(startpoint=self.startpoint,
+                                    endpoint=self.endpoint,
+                                    width=self.width,
+                                    with_injection=True,
+                                    verbose=verbose)
 
-        if mulobject == "MulWell":
-            proj_inj = mulobject.project(startpoint=self.startpoint,
-                                        endpoint=self.endpoint,
-                                        width=self.width,
-                                        with_injection=True,
-                                        verbose=verbose)
-        else:
-            projections = mulobject.project(self.startpoint,self.endpoint,
-                                        self.width,verbose=verbose)
-            # injections = []
+        trajectories = []
+        injections = []
+        survey_baseplots = [ ]
+        inj_baseplots = [ ]
+        for n_well,(trajectory,injection_segments) in enumerate(projected_data):
+            well = mulwell[n_well]
+            inj = well.injection
+
+            if trajectory.empty:
+                continue
+
+            if depth_unit == "m":
+                trajectory["depth"] = trajectory["depth"]/1e3
+            if self.baseprofile.output_unit == "m":
+                trajectory["depth"] = trajectory["depth"]*1e3
+                trajectory["distance"] = trajectory["distance"]*1e3
+
+            for injection in injection_segments:
+                if injection.empty:
+                    continue
+
+                if depth_unit == "m":
+                    injection["depth"] = injection["depth"]/1e3
+                if self.baseprofile.output_unit == "m":
+                    injection["depth"] = injection["depth"]*1e3
+                    injection["distance"] = injection["distance"]*1e3
+
+                inj_baseplots.append(inj.baseplot)
+                injections.append(injection)
+
+            survey_baseplots.append(well.baseplot)
+            trajectories.append(trajectory)
+
+        # survey_baseplots = [ x.baseplot for x in mulwell]
+        # inj_baseplots = [ x.injection.baseplot for x in mulwell]
+
+        survey_info = {"projections":trajectories,"baseplots":survey_baseplots,
+                "cpt":mulwell.survey_cpt,
+                "show_cpt":mulwell.show_survey_cpt}
+        injection_info = {"projections":injections,"baseplots":inj_baseplots,
+                "cpt":mulwell.injection_cpt,
+                "show_cpt":mulwell.show_injection_cpt}
+
+        self.mulobjects[mulwell_name] = survey_info
+        self.mulobjects["Injection"] = injection_info
+
+    def _add_catalog(self,mulcatalog,depth_unit,
+                            verbose=True ):
+        mulcatalog_name = mulcatalog.__class__.__name__
+
+        projections = mulcatalog.project(self.startpoint,self.endpoint,
+                                    self.width,verbose=verbose)
 
         for projection in projections:
             if depth_unit == "m":
@@ -2706,13 +2766,21 @@ class Profile():
                 projection["depth"] = projection["depth"]*1e3
                 projection["distance"] = projection["distance"]*1e3
         
-
-        baseplots = [ x.baseplot for x in mulobject]
-
+        baseplots = [ x.injection.baseplot for x in mulcatalog]
         
-        info = {"projections":projections,"baseplots":baseplots,"cpt":mulobject.cpt,
-                "show_cpt":mulobject.show_cpt}
-        self.mulobjects[mulobject_name] = info
+        info = {"projections":projections,"baseplots":baseplots,"cpt":mulcatalog.cpt,
+                "show_cpt":mulcatalog.show_cpt}
+
+
+        self.mulcatalogs[mulcatalog_name] = info
+
+    def add_mulobject(self,mulobject,depth_unit,verbose=True):
+        mulcatalog_name = mulobject.__class__.__name__
+        if mulcatalog_name == "MulWell":
+            self._add_mulwell(mulobject,depth_unit,verbose)
+        elif mulcatalog_name == "MulCatalog":
+            self._add_catalog(mulobject,depth_unit,verbose)
+
 
     def plot_in_map(self,fig,colorline="magenta"):
         """
@@ -2753,17 +2821,32 @@ class Profile():
 
         n_showed_cpt = 0
         for mulobject_name, info in mulobjects:
+            print(mulobject_name, info)
             if not info["cpt"]:
-                zmin = [x.depth.min() for x in info["projections"]]
-                zmax = [x.depth.max() for x in info["projections"]]
-                zmin = min(zmin)
-                zmax = min(zmax)
-                cpt = CPT(color_target="depth",
-                            label="Depth",
-                            cmap="rainbow",
-                            series=[zmin,zmax],
-                            reverse=True,
-                            overrule_bg=True)
+                if mulobject_name == "Injection":
+                    print(info["projections"])
+                    zmin = [x.measurement.min() for x in info["projections"]]
+                    zmax = [x.measurement.max() for x in info["projections"]]
+                    zmin = min(zmin)
+                    zmax = max(zmax)
+                    print(zmin,zmax)
+                    cpt = CPT(color_target="measurement",
+                                label="measurement",
+                                cmap="cool",
+                                series=[zmin,zmax],
+                                reverse=True,
+                                overrule_bg=True)
+                else:
+                    zmin = [x.depth.min() for x in info["projections"]]
+                    zmax = [x.depth.max() for x in info["projections"]]
+                    zmin = min(zmin)
+                    zmax = max(zmax)
+                    cpt = CPT(color_target="depth",
+                                label="Depth",
+                                cmap="rainbow",
+                                series=[zmin,zmax],
+                                reverse=True,
+                                overrule_bg=True)
             else:
                 cpt = info["cpt"]
 
@@ -3146,11 +3229,11 @@ class MulWell():
                     data.append(well.injection.data)
             if data:
                 data = pd.concat(data)
-                zmin = data.depth.min()
-                zmax = data.depth.max()
-                self.injection_cpt = CPT(color_target="depth",
-                            label="depth",
-                            cmap="rainbow",
+                zmin = data.measurement.min()
+                zmax = data.measurement.max()
+                self.injection_cpt = CPT(color_target="measurement",
+                            label="measurement",
+                            cmap="cool",
                             series=[zmin,zmax],
                             reverse=True,
                             overrule_bg=True)

@@ -74,36 +74,38 @@ injection = injection[injection["name"]=="CAD01"]
 print(injection)
 injection = Injection(injection,depth_type="MD",
                     baseplot=BasePlot(cmap=True,
-                                color="blue",
+                                    color="blue",
                                     style="g0.3")
                                     )
 well = Well(data,"PAD",
             baseplot = BasePlot(
                         # size=None,
-                        style="c0.5",
-                        cmap=True,
+                        # style="c0.2",
+                        cmap=False,
                         color=None,
                         label=None,
                         transparency=None,
-                        # pen="1p"
+                        pen="1p"
                         ),
             injection=injection
                         
                 )
 # p = well.project((-73.67,3.82),(-73.66,3.81),(-0.1,0.1),with_injection=True)
 # print(p)
-wellfig = well.plot_map()
-wellfig.show()
+# wellfig = well.plot_map()
+# wellfig.show()
 
-exit()
+# exit()
 mulwell = MulWell([well])
+# fig = mulwell.plot_map()
+# fig.show()
 baseprofile = BaseProfile(projection="X10/-10",
                         depth_lims=[0,3e3],output_unit="m")
 profile = Profile(name=("A","A'"),      
         coords=((-73.67,3.82),(-73.66,3.81)), 
         # coords=((-73.690175,3.869714),(-73.666203,3.895990)), 
         # coords=((-80,10),(-70,10)), 
-        width=(-0.1,0.1),
+        width=(-10,10),
         baseprofile=baseprofile
             )
 
@@ -113,9 +115,9 @@ profile = Profile(name=("A","A'"),
 # wellfig.show()
 
 # w.show()
-profile.add_mulobject(mulcatalog,depth_unit="m",
-                    verbose=True)
-profile.add_mulobject(mulwell,depth_unit="m",
+# profile.add_mulobject(mulcatalog,depth_unit="m",
+#                     verbose=True)
+profile._add_mulwell(mulwell,depth_unit="m",
                     verbose=True)
 # x = profile.plot_map(mapfig)
 fig = profile.plot_profile()
