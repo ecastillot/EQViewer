@@ -15,9 +15,19 @@ import datetime as t
 import random
 
 cat_csv = os.path.join(rep_data,"earthquakes",
-                        "events_20160101T20220901.csv")
-events = pd.read_csv(cat_csv)
-events["origin_time"] = pd.to_datetime(events['origin_time'])
+                        "CAS_20190515-20220831.csv")
+events = pd.read_csv(cat_csv,sep=";")
+events = events.rename(columns={"Origin time":"origin_time",
+                                "Depth (m)":"depth",
+                                "Mag. (Mw)":"magnitude",
+                                "Latitude (deg)":"latitude",
+                                "Longitude (deg)":"longitude"})
+events["origin_time"] = pd.to_datetime(events['origin_time']).dt.tz_localize(None)
+
+# cat_csv = os.path.join(rep_data,"earthquakes",
+#                         "events_20160101T20220901.csv")
+# events = pd.read_csv(cat_csv)
+# events["origin_time"] = pd.to_datetime(events['origin_time'])
 
 df1 = events[events["origin_time"]<=dt.datetime(2022,1,1)]
 df2 = events[events["origin_time"]>=dt.datetime(2022,1,1)]
@@ -49,6 +59,23 @@ data = data.rename(columns={"MD (ft)":"MD",
                             "Lat (°)":"latitude",
                             "Z (m)": "depth",
                             "TVD (ft)":"TVD"})
+# data_path = "/home/emmanuel/EQviewer/data/well/well_example.csv"
+# data = pd.read_csv(data_path)
+# data = data.rename(columns={"MD":"MD",
+#                             "lon":"longitude",
+#                             "lat":"latitude",
+#                             "z": "depth",
+#                             "TVD":"TVD"})
+injection = pd.read_csv("/home/emmanuel/EQviewer/data/well/CASTILLA_ft_ini.dat")
+injection = injection.rename(columns={"min":"min_depth",
+                                    "max":"max_depth",
+                                    "water_flow":"measurement"})
+injection = injection[injection["name"]=="CAD01"]
+print(injection)
+injection = Injection(injection,depth_type="MD",
+                    baseplot=BasePlot(cmap=True,
+                                    style="g0.3")
+                                    )
 well = Well(data,"PAD",
             survey_baseplot = BasePlot(
                         # size=None,
@@ -58,28 +85,41 @@ well = Well(data,"PAD",
                         label=None,
                         transparency=None,
                         pen="1p"
-                        ))
-mulwell = MulWell([well])
-wellfig = mulwell.plot_map()
+                        ),
+            injection=injection
+                        
+                )
+wellfig = well.plot_map(injection_cpt=CPT(color_target="measurement",
+                                label="measurement",
+                                cmap="cool",
+                                series=[0,4e4,4e4/5],
+                                reverse=True,
+                                overrule_bg=True))
 wellfig.show()
 
-
+exit()
+mulwell = MulWell([well])
 baseprofile = BaseProfile(projection="X10/-10",
-                        depth_lims=[0,200],output_unit="km")
+                        depth_lims=[0,3e3],output_unit="m")
 profile = Profile(name=("A","A'"),      
-        coords=((-73.690175,3.869714),(-73.666203,3.895990)), 
+        coords=((-73.67,3.82),(-73.66,3.81)), 
+        # coords=((-73.690175,3.869714),(-73.666203,3.895990)), 
         # coords=((-80,10),(-70,10)), 
-        width=(-300,300),
+        width=(-0.1,0.1),
         baseprofile=baseprofile
             )
 
-mapfig = mulcatalog.plot_map()
-profile.add_mulobject(mulcatalog,depth_unit="km",
+# wellfig = mulwell.plot_map()
+# wellfig = mulcatalog.plot_map(fig = wellfig )
+# wellfig = profile.plot_in_map(wellfig )
+# wellfig.show()
+
+# w.show()
+profile.add_mulobject(mulcatalog,depth_unit="m",
                     verbose=True)
 profile.add_mulobject(mulwell,depth_unit="m",
                     verbose=True)
-mapfig = profile.plot_map(mapfig)
-mapfig.show()
+# x = profile.plot_map(mapfig)
 fig = profile.plot_profile()
 fig.show()
 # print(profile.projections)

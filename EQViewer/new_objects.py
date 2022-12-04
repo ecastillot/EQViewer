@@ -458,19 +458,26 @@ class Catalog():
         data = self.data
         data = data[["longitude","latitude","depth",
                     "origin_time","magnitude"]]
-        projection = pygmt.project(
-                            data=data,
-                            unit=True,
-                            center=startpoint,
-                            endpoint=endpoint,
-                            convention="pz",
-                            width=width,
-                            verbose=verbose
-                                )
-        projection = projection.rename(columns={0:"distance",
-                                1:"depth",
-                                2:"origin_time",
-                                3:"magnitude"})
+        
+        data = data.drop_duplicates(subset=["latitude","longitude","depth"])
+        data = data.dropna(subset=["latitude","longitude","depth"])
+
+        try:
+            projection = pygmt.project(
+                                data=data,
+                                unit=True,
+                                center=startpoint,
+                                endpoint=endpoint,
+                                convention="pz",
+                                width=width,
+                                verbose=verbose
+                                    )
+            projection = projection.rename(columns={0:"distance",
+                                    1:"depth",
+                                    2:"origin_time",
+                                    3:"magnitude"})
+        except:
+            projection = pd.DataFrame(columns =["distance","depth"])
         return projection
 
     def plot_map(self,
@@ -903,9 +910,6 @@ class MulCatalog():
                 catalog.plot_map(fig=fig,cpt=None,show_cpt=False)
                 _show_cpt = False
             show_catalog_cpt.append(_show_cpt)
-
-        # if isinstance(profile,Profile):
-
 
         if any(show_catalog_cpt):
             if self.show_cpt:
@@ -2406,11 +2410,11 @@ class Well():
         injection_baseplot: BasePlot
             Control injection plot args
         """
-        self.columns = ['latitude','longitude','depth','TVD','MD']
+        self.columns = ['longitude','latitude','depth','TVD','MD']
         check =  all(item in data.columns.to_list() for item in self.columns)
         if not check:
             raise Exception("There is not the mandatory columns for the data in Well object."\
-                            +"->'latitude','longitude','depth','TVD','MD'")
+                            +"->'longitude','latitude','depth','TVD','MD'")
         self.data = data.sort_values("depth")
         self.name = name
         self.survey_baseplot = survey_baseplot
@@ -2508,21 +2512,26 @@ class Well():
         except:
             columns = self.columns
             data = data[self.columns]
-        projection = pygmt.project(
-                            data=data,
-                            unit=True,
-                            center=startpoint,
-                            endpoint=endpoint,
-                            convention="pz",
-                            width=width,
-                            verbose=verbose
-                                )
-        n_columns = range(0,len(columns))
-        renaming = dict(zip(n_columns,columns))
-        projection = projection.rename(columns=renaming)
+        
+        data = data.drop_duplicates(subset=["latitude","longitude","depth"])
+        data = data.dropna(subset=["latitude","longitude","depth"])
 
-        # if not self.injection.empty:
-
+        try:
+            projection = pygmt.project(
+                                data=data,
+                                unit=True,
+                                center=startpoint,
+                                endpoint=endpoint,
+                                convention="pz",
+                                width=width,
+                                verbose=verbose
+                                    )
+            n_columns = range(1,len(columns)-1)
+            renaming = dict(zip(n_columns,columns[2:]))
+            renaming[0] = "distance"
+            projection = projection.rename(columns=renaming)
+        except:
+            projection = pd.DataFrame(columns =["distance","depth"])
 
         return projection
 
@@ -2581,21 +2590,23 @@ class Well():
             injection_trajectories = self.injection._get_injection_trajectories(data)
             
             all_injection = pd.concat(injection_trajectories)
-
             injection_info2pygmt = self.injection_baseplot.get_info2pygmt(data)
+            print(injection_info2pygmt)
             if self.injection.baseplot.cmap:
 
                 if (injection_cpt == None) and \
                     ("measurement" in all_injection.columns.to_list()):
                     zmin = all_injection.measurement.min()
                     zmax = all_injection.measurement.max()
+                    print(zmin,zmax)
                     injection_cpt = CPT(color_target="measurement",
                                 label="measurement",
                                 cmap="cool",
-                                series=[zmin,zmax],
+                                series=[zmin,zmax,(zmax-zmin)/5],
                                 reverse=True,
                                 overrule_bg=True)
-                injection_info2pygmt["color"] = data[injection_cpt.color_target].to_numpy()
+                # print(all_injection )
+                injection_info2pygmt["color"] = all_injection[injection_cpt.color_target].to_numpy()
                 pygmt.makecpt(**injection_cpt.makecpt_kwargs)
         
                 if show_injection_cpt:
@@ -2617,26 +2628,14 @@ class Well():
                 lat = f_lat(injection["depth"].to_numpy())
                 lon = f_lon(injection["depth"].to_numpy())
 
-                if not self.injection.baseplot.cmap:
-                    injection_info2pygmt["color"] = data[injection_cpt.color_target]
-                #     color = injection["measurement"].to_numpy()
-                # else: 
-                #     color = "blue"
-
+                if self.injection.baseplot.cmap:
+                    injection_info2pygmt["color"] = injection["measurement"].to_numpy()
+                    injection_info2pygmt["cmap"] = True
                 fig.plot(
                         x=lon,
                         y=lat,
                         **injection_info2pygmt
                         )
-                # fig.plot(
-                #         x=lon,
-                #         y=lat,
-                #         cmap=self.injection.baseplot.cmap,
-                #         color=color,
-                #         size=None,
-                #         style="g0.3",
-                #         )
-
         return fig
 
     def matplot(self,ax=None):
@@ -2682,15 +2681,19 @@ class Profile():
                 projection["depth"] = projection["depth"]*1e3
                 projection["distance"] = projection["distance"]*1e3
         
-        baseplots = [ x.baseplot for x in mulobject]
-
         mulobject_name = mulobject.__class__.__name__
+
+        if mulobject_name == "MulWell":
+            baseplots = [ x.survey_baseplot for x in mulobject]
+        else:
+            baseplots = [ x.baseplot for x in mulobject]
+
         
         info = {"projections":projections,"baseplots":baseplots,"cpt":mulobject.cpt,
                 "show_cpt":mulobject.show_cpt}
         self.mulobjects[mulobject_name] = info
 
-    def plot_map(self,fig,colorline="magenta"):
+    def plot_in_map(self,fig,colorline="magenta"):
         """
         add profiles in figure
         """
@@ -2701,7 +2704,6 @@ class Profile():
                                         abs(self.width[1]),
                                         upper_line=False)
         cbl,dbl = bl
-        
         fig.plot(x=[cbl[0], dbl[0],dul[0],cul[0],cbl[0]], 
                 y=[cbl[1], dbl[1],dul[1],cul[1],cbl[1]],
                 pen=f"1.5p,{colorline},4_2:2p")
@@ -2716,7 +2718,6 @@ class Profile():
                 pen="black",
                 fill="white",offset="0.05c/0.05c")
                 # fill=None,offset="0.05c/0.05c")
-
         return fig
 
     def plot_profile(self):
@@ -3114,10 +3115,10 @@ class MulWell():
         show_well_cpt = []
         for well in self.wells:
             if well.survey_baseplot.cmap:
-                well.plot_map(fig=fig,survey_cpt=self.cpt,show_cpt=False)
+                well.plot_map(fig=fig,survey_cpt=self.cpt,show_survey_cpt=False)
                 _show_cpt = True
             else:
-                well.plot_map(fig=fig,cpt=None,show_cpt=False)
+                well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False)
                 _show_cpt = False
             show_well_cpt.append(_show_cpt)
 
