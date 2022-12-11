@@ -130,6 +130,8 @@ profile = Profile(name=("A","A'"),
         width=(-10,10),
         baseprofile=baseprofile
             )
+print(profile.__str__(True))
+# exit()
 
 wellfig = mulwell.plot_map()
 wellfig = mulcatalog.plot_map(fig = wellfig )

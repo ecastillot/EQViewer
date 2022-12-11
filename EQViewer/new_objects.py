@@ -1946,7 +1946,6 @@ class FM():
                                     5:"rake"})
         except:
             projection = pd.DataFrame(columns =["distance","depth"])
-        print(projection)
         return projection
 
     def plot_map(self,fig=None,
@@ -2344,7 +2343,8 @@ class Injection():
             _depth = depth[(depth[self.depth_type]>=row.min_depth) &\
                            (depth[self.depth_type]<=row.max_depth) ]
             if "measurement" in self.data.columns.to_list():
-                _depth["measurement"] = row.measurement
+                _depth = _depth.assign(measurement=row.measurement)
+                print(_depth)
             depths.append(_depth)
         return depths
 
@@ -2671,6 +2671,19 @@ class Profile():
         self.width = width
         self.baseprofile = baseprofile
         self.mulobjects = {}
+
+    def __str__(self,extended=False) -> str:
+        name = "-".join(self.name)
+        if extended:
+            msg = f"Profile  {name} "\
+                    +f"\n\t{self.name[0]}: {self.coords[0]}"\
+                    +f"\n\t{self.name[1]}: {self.coords[1]}"\
+                    +f"\n\twidth: {self.width} m"\
+                    +f"\n\toutput_unit: {self.baseprofile.output_unit}"
+        else:
+            msg = f"Profile  {name}"
+
+        return msg
 
     def _add_mulwell(self,mulwell,depth_unit,verbose=True):
         mulwell_name = mulwell.__class__.__name__
@@ -3146,6 +3159,35 @@ class MulProfile():
         """
         self.profiles = profiles
         
+    def __iter__(self):
+        return list(self.profiles).__iter__()
+
+    def __nonzero__(self):
+        return bool(len(self.profiles))
+
+    def __len__(self):
+        return len(self.profiles)
+    
+    def __str__(self,extended=False) -> str:
+        msg = f"Profiles ({self.__len__()} profiles)\n"
+        msg += "-"*len(msg) 
+
+        submsgs = []
+        for i,profile in enumerate(self.__iter__(),1):
+            submsg = f"{i}. "+profile.__str__(extended=extended)
+            submsgs.append(submsg)
+                
+        if len(self.profiles)<=20 or extended is True:
+            submsgs = "\n".join(submsgs)
+        else:
+            three_first_submsgs = submsgs[0:3]
+            last_two_subsgs = submsgs[-2:]
+            len_others = len(self.profiles) -len(three_first_submsgs) - len(last_two_subsgs)
+            submsgs = "\n".join(three_first_submsgs+\
+                                [f"...{len_others} other profiles..."]+\
+                                last_two_subsgs)
+
+        return msg+ "\n" +submsgs
 
 
 if __name__ == "__main__":
