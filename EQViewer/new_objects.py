@@ -2822,13 +2822,15 @@ class Profile():
                 # fill=None,offset="0.05c/0.05c")
         return fig
 
-    def plot(self):
+    def plot(self,fig=None):
 
         max_distance,a,ba = gps2dist_azimuth(self.startpoint[1],self.startpoint[0],
                                             self.endpoint[1],self.endpoint[0])
         basemap_args = self.baseprofile.get_basemap_args(max_distance)
 
-        fig = pygmt.Figure()
+        if fig == None:
+            fig = pygmt.Figure()
+
         fig.basemap(**basemap_args)
         mulobjects = self.mulobjects.items()
 
@@ -3238,8 +3240,51 @@ class MulProfile():
             fig = profile.plot_in_map(fig,colorline,rescale)
         return fig
 
-    # def plot(self):
+    def plot(self,nrows=None,ncols=None,
+                frame="WSrt",
+                subsize = ("12c", "12c"),
+                figsize=None,
+                margins=["1c","1c"],**kwargs):
+        """
+        kwargs: pygmt subplot kwargs
+        """
 
+        if (nrows == None) and (ncols==None):
+            if nrows+ncols != len(self.profiles):
+                raise Exception(f"nrows + ncols must be equal to {len(self.profiles)}")
+        elif (nrows == None) or (ncols==None):
+            if nrows:
+                ncols = len(self.profiles) - nrows
+            else:
+                nrows = len(self.profiles) - ncols
+        else:
+            n = len(self.profiles)
+            n_square = np.sqrt(n)
+            ncols = int(n_square )
+            nrows = int(n_square )
+            if n ==2:
+                ncols = 1
+                nrows = 2
+            elif n%n_square != 0:
+                ncols += 1
+                nrows += 1
+        
+        fig = pygmt.Figure()
+        with pygmt.clib.Session() as session:
+            session.call_module('gmtset', 'FONT 10p')
+            subplot =   fig.subplot(
+                        nrows=nrows, ncols=ncols, 
+                        subsize=subsize, 
+                        figsize=None,
+                        frame=frame,
+                        margins=margins
+                        ) 
+        with subplot:
+            for f,profile in enumerate(self.profiles):
+                print(f+1,"->",profile.name)
+
+                with fig.set_panel(panel=f):
+                    profile.plot(fig=fig)
 
 if __name__ == "__main__":
     cat = Catalog(data="hola")

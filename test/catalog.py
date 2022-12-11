@@ -138,7 +138,7 @@ wellfig = mulcatalog.plot_map(fig = wellfig )
 wellfig = mulfm.plot_map(fig = wellfig )
 wellfig = profile.plot_in_map(wellfig,rescale=True )
 wellfig.show()
-exit()
+# exit()
 
 
 
