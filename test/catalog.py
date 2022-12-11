@@ -100,6 +100,24 @@ well = Well(data,"PAD",
 mulwell = MulWell([well])
 # fig = mulwell.plot_map()
 # fig.show()
+fm_csv = os.path.join(rep_data,"mf","MF_quifa_201301_202203.csv")
+events = pd.read_csv(fm_csv)
+events = events.rename(columns={"Origin time":"origin_time",
+                        "Latitude (deg)":"latitude",
+                        "Longitude (deg)":"longitude",
+                        "Depth (m)":"depth",
+                        "Mag. (Mw)":"magnitude",
+                        "Dip n1 (deg)":"dip",
+                        "Rake n1 (deg)":"rake",
+                        "Strike n1 (deg)":"strike",
+                        "Dip n2 (deg)":"dip_n2",
+                        "Rake n2 (deg)":"rake_n2",
+                        "Strike n2 (deg)":"strike_n2",
+                        }
+                        )
+fm = FM(events,BaseMeca(cmap=False))
+mulfm = MulFM([fm])
+
 baseprofile = BaseProfile(
                         projection="x0.002c/-0.002",
                         # projection="X10/-10",
@@ -108,20 +126,25 @@ profile = Profile(name=("A","A'"),
         coords=((-73.67,3.82),(-73.66,3.81)), 
         # coords=((-73.690175,3.869714),(-73.666203,3.895990)), 
         # coords=((-80,10),(-70,10)), 
-        width=(-0.1,0.1),
-        # width=(-10,10),
+        # width=(-0.1,0.1),
+        width=(-10,10),
         baseprofile=baseprofile
             )
 
 wellfig = mulwell.plot_map()
 wellfig = mulcatalog.plot_map(fig = wellfig )
+wellfig = mulfm.plot_map(fig = wellfig )
 wellfig = profile.plot_in_map(wellfig )
 wellfig.show()
+
+
 
 # w.show()
 profile.add_mulobject(mulcatalog,depth_unit="m",
                     verbose=True)
 profile._add_mulwell(mulwell,depth_unit="m",
+                    verbose=True)
+profile.add_mulobject(mulfm,depth_unit="m",
                     verbose=True)
 fig = profile.plot_profile()
 fig.show()

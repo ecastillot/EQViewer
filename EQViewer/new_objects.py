@@ -1728,7 +1728,7 @@ class FM():
         -----------
         data: pd.DataFrame 
             Dataframe with the next mandatory columns:
-            'origin_time','latitude','longitude','depth','magnitude',
+            'latitude','longitude','depth','magnitude',
             'strike','dip','rake'.
             WARNING: depth must be in km
             Optionals:
@@ -1759,12 +1759,9 @@ class FM():
                             +"->'latitude','longitude','depth','magnitude'")
 
         data = data.drop_duplicates(subset=self.columns,ignore_index=True)
-        data["origin_time"] = pd.to_datetime(data["origin_time"]).dt.tz_localize(None)
 
         self.data = data
         self.basemeca = basemeca
-
-        
 
     @property
     def empty(self):
@@ -1924,24 +1921,35 @@ class FM():
         """
         data = self.data
         
-        columns = self.columns
-        data = data[self.columns]
-        projection = pygmt.project(
-                            data=data,
-                            unit=True,
-                            center=startpoint,
-                            endpoint=endpoint,
-                            convention="pz",
-                            width=width,
-                            verbose=verbose
-                                )
-        n_columns = range(0,len(columns))
-        renaming = dict(zip(n_columns,columns))
-        projection = projection.rename(columns=renaming)
-
+        data = data[["longitude","latitude","depth",
+                    "magnitude","strike","dip","rake"]]
+        data = data.drop_duplicates(subset=["latitude","longitude","depth"])
+        data = data.dropna(subset=["latitude","longitude","depth"])
+        try:
+            projection = pygmt.project(
+                                data=data,
+                                unit=True,
+                                center=startpoint,
+                                endpoint=endpoint,
+                                convention="pz",
+                                width=width,
+                                verbose=verbose
+                                    )
+            # n_columns = range(0,len(columns))
+            # renaming = dict(zip(n_columns,columns))
+            # projection = projection.rename(columns=renaming)
+            projection = projection.rename(columns={0:"distance",
+                                    1:"depth",
+                                    2:"magnitude",
+                                    3:"strike",
+                                    4:"dip",
+                                    5:"rake"})
+        except:
+            projection = pd.DataFrame(columns =["distance","depth"])
+        print(projection)
         return projection
 
-    def plot(self,fig=None,
+    def plot_map(self,fig=None,
             cpt=None,
             show_cpt=True):
         """
@@ -2008,7 +2016,7 @@ class FM():
                 scale = str(info2pygmt["scale"]),
                 G = info2pygmt["color"],
                 offset=True,
-                transparency= info2pygmt["transparency"]
+                transparency= info2pygmt["transparency"],
                 )
         os.remove("./tmp_meca.txt")
             
@@ -2217,7 +2225,7 @@ class MulFM():
 
         return region
 
-    def plot(self,fig=None):
+    def plot_map(self,fig=None):
 
         """
         Plot the fm.
@@ -2238,23 +2246,24 @@ class MulFM():
             for fm in self.fms:
                 if fm.basemeca.cmap:
                     data.append(fm.data)
-            data = pd.concat(data)
-            zmin = data.depth.min()
-            zmax = data.depth.max()
-            self.cpt = CPT(color_target="depth",
-                        label="depth",
-                        cmap="rainbow",
-                        series=[zmin,zmax],
-                        reverse=True,
-                        overrule_bg=True)
+            if data:
+                data = pd.concat(data)
+                zmin = data.depth.min()
+                zmax = data.depth.max()
+                self.cpt = CPT(color_target="depth",
+                            label="depth",
+                            cmap="rainbow",
+                            series=[zmin,zmax],
+                            reverse=True,
+                            overrule_bg=True)
 
         show_fm_cpt = []
         for fm in self.fms:
             if fm.basemeca.cmap:
-                fm.plot(fig=fig,cpt=self.cpt,show_cpt=False)
+                fm.plot_map(fig=fig,cpt=self.cpt,show_cpt=False)
                 _show_cpt = True
             else:
-                fm.plot(fig=fig,cpt=None,show_cpt=False)
+                fm.plot_map(fig=fig,cpt=None,show_cpt=False)
                 _show_cpt = False
             show_fm_cpt.append(_show_cpt)
 
@@ -2714,7 +2723,7 @@ class Profile():
         self.mulobjects[mulwell_name] = survey_info
         self.mulobjects["Injection"] = injection_info
 
-    def _add_catalog(self,mulcatalog,depth_unit,
+    def _add_mulcatalog(self,mulcatalog,depth_unit,
                             verbose=True ):
         mulcatalog_name = mulcatalog.__class__.__name__
 
@@ -2736,12 +2745,35 @@ class Profile():
 
         self.mulobjects[mulcatalog_name] = info
 
+    def _add_mulfm(self,mulfm,depth_unit,
+                            verbose=True ):
+        mulcatalog_name = mulfm.__class__.__name__
+
+        projections = mulfm.project(self.startpoint,self.endpoint,
+                                    self.width,verbose=verbose)
+        for projection in projections:
+            if depth_unit == "m":
+                projection["depth"] = projection["depth"]/1e3
+            if self.baseprofile.output_unit == "m":
+                projection["depth"] = projection["depth"]*1e3
+                projection["distance"] = projection["distance"]*1e3
+        
+        baseplots = [ x.basemeca for x in mulfm]
+        
+        info = {"projections":projections,"baseplots":baseplots,"cpt":mulfm.cpt,
+                "show_cpt":mulfm.show_cpt}
+
+
+        self.mulobjects[mulcatalog_name] = info
+
     def add_mulobject(self,mulobject,depth_unit,verbose=True):
         mulcatalog_name = mulobject.__class__.__name__
         if mulcatalog_name == "MulWell":
             self._add_mulwell(mulobject,depth_unit,verbose)
         elif mulcatalog_name == "MulCatalog":
-            self._add_catalog(mulobject,depth_unit,verbose)
+            self._add_mulcatalog(mulobject,depth_unit,verbose)
+        elif mulcatalog_name == "MulFM":
+            self._add_mulfm(mulobject,depth_unit,verbose)
 
     def plot_in_map(self,fig,colorline="magenta"):
         """
@@ -2816,15 +2848,48 @@ class Profile():
             for i,data in enumerate(info["projections"]):
                 if data.empty:
                     continue
-                info2pygmt = info["baseplots"][i].get_info2pygmt(data)
-                if info2pygmt["cmap"] == True:
-                    show_cpt = True
-                    info2pygmt["color"] = data[cpt.color_target]
-                pygmt.makecpt(**cpt.makecpt_kwargs)
-                fig.plot(x=data.distance,
+                if mulobject_name == "MulFM":
+                    info2pygmt = info["baseplots"][i].get_info2pygmt()
+
+                    pygmt.makecpt(**cpt.makecpt_kwargs)
+                    data = data.rename(columns={"distance":"longitude",
+                                                "depth":"latitude"})
+                    data["depth"] = data["latitude"]
+                    data = data[['longitude','latitude',
+                                'depth',
+                                'strike','dip','rake','magnitude',
+                                ]]
+                    data.to_csv("./tmp_meca.txt",sep="\t",index=False,header=False)
+                    if info2pygmt["cmap"] == True:
+                        show_cpt = True
+                        fig.meca(
+                            spec="./tmp_meca.txt",
+                            convention="aki",
+                            scale = str(info2pygmt["scale"]),
+                            C = info2pygmt["cmap"],
+                            offset=True,
+                            transparency= info2pygmt["transparency"]
+                            )
+                    else:
+                        fig.meca(
+                            spec="./tmp_meca.txt",
+                            convention="aki",
+                            scale = str(info2pygmt["scale"]),
+                            G = info2pygmt["color"],
+                            offset=True,
+                            transparency= info2pygmt["transparency"]
+                            )
+                    os.remove("./tmp_meca.txt")
+                else:
+                    info2pygmt = info["baseplots"][i].get_info2pygmt(data)
+                    if info2pygmt["cmap"] == True:
+                        show_cpt = True
+                        info2pygmt["color"] = data[cpt.color_target]
+                    pygmt.makecpt(**cpt.makecpt_kwargs)
+                    fig.plot(x=data.distance,
                         y=data.depth,
                         **info2pygmt)
-
+                    
                 
             if show_cpt:
                 n_showed_cpt += 1
