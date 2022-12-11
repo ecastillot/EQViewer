@@ -2344,7 +2344,6 @@ class Injection():
                            (depth[self.depth_type]<=row.max_depth) ]
             if "measurement" in self.data.columns.to_list():
                 _depth = _depth.assign(measurement=row.measurement)
-                print(_depth)
             depths.append(_depth)
         return depths
 
@@ -2788,7 +2787,7 @@ class Profile():
         elif mulcatalog_name == "MulFM":
             self._add_mulfm(mulobject,depth_unit,verbose)
 
-    def plot_in_map(self,fig,colorline="magenta"):
+    def plot_in_map(self,fig,colorline="magenta",rescale=True):
         """
         add profiles in figure
         """
@@ -2799,9 +2798,17 @@ class Profile():
                                         abs(self.width[1]),
                                         upper_line=False)
         cbl,dbl = bl
+        x = [cbl[0], dbl[0],dul[0],cul[0],cbl[0]]
+        y = [cbl[1], dbl[1],dul[1],cul[1],cbl[1]]
+
+        if rescale:
+            region = [min(x),max(x),min(y),max(y)]
+        else:
+            region =None
+
         fig.plot(x=[cbl[0], dbl[0],dul[0],cul[0],cbl[0]], 
                 y=[cbl[1], dbl[1],dul[1],cul[1],cbl[1]],
-                pen=f"1.5p,{colorline},4_2:2p")
+                pen=f"1.5p,{colorline},4_2:2p",region=region)
         ln,rn = self.name
         fig.text(x=self.startpoint[0], y=self.startpoint[1], text=f"{ln}",
                 font=f"10p,Helvetica,black",
@@ -2815,7 +2822,7 @@ class Profile():
                 # fill=None,offset="0.05c/0.05c")
         return fig
 
-    def plot_profile(self):
+    def plot(self):
 
         max_distance,a,ba = gps2dist_azimuth(self.startpoint[1],self.startpoint[0],
                                             self.endpoint[1],self.endpoint[0])
@@ -3188,6 +3195,50 @@ class MulProfile():
                                 last_two_subsgs)
 
         return msg+ "\n" +submsgs
+
+    def __setitem__(self, index, trace):
+        self.profiles.__setitem__(index, trace)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(profiles=self.profiles.__getitem__(index))
+        else:
+            return self.profiles.__getitem__(index)
+
+    def __delitem__(self, index):
+        return self.profiles.__delitem__(index)
+
+    def __getslice__(self, i, j, k=1):
+        return self.__class__(profiles=self.profiles[max(0, i):max(0, j):k])
+
+    def append(self, profile):
+        """
+        append a profile
+        """
+        if isinstance(profile, profile):
+            self.profiles.append(profile)
+        else:
+            msg = 'Append only supports a single Profile object as an argument.'
+            raise TypeError(msg)
+        return self
+
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
+    def add_mulobject(self,mulobject,depth_unit,verbose=True):
+        for profile in self.profiles:
+            profile.add_mulobject(mulobject,depth_unit,verbose)
+
+    def plot_in_map(self,fig,colorline="magenta",rescale=True):
+        """
+        add profiles in figure
+        """
+        for profile in self.profiles:
+            fig = profile.plot_in_map(fig,colorline,rescale)
+        return fig
+
+    # def plot(self):
 
 
 if __name__ == "__main__":
