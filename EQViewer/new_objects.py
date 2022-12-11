@@ -2830,8 +2830,14 @@ class Profile():
 
         if fig == None:
             fig = pygmt.Figure()
-
+        else:
+            if self.baseprofile.reverse_xy:
+                basemap_args["projection"] = "x?/?"
+            else:
+                basemap_args["projection"] = "x?/-?"
+                
         fig.basemap(**basemap_args)
+
         mulobjects = self.mulobjects.items()
 
         n_showed_cpt = 0
@@ -3249,10 +3255,10 @@ class MulProfile():
         kwargs: pygmt subplot kwargs
         """
 
-        if (nrows == None) and (ncols==None):
+        if (nrows != None) and (ncols!=None):
             if nrows+ncols != len(self.profiles):
                 raise Exception(f"nrows + ncols must be equal to {len(self.profiles)}")
-        elif (nrows == None) or (ncols==None):
+        elif (nrows != None) or (ncols!=None):
             if nrows:
                 ncols = len(self.profiles) - nrows
             else:
@@ -3285,6 +3291,8 @@ class MulProfile():
 
                 with fig.set_panel(panel=f):
                     profile.plot(fig=fig)
+
+        return fig
 
 if __name__ == "__main__":
     cat = Catalog(data="hola")
