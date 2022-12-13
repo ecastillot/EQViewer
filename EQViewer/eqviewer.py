@@ -1585,7 +1585,7 @@ class MulShape():
             last_two_subsgs = submsgs[-2:]
             len_others = len(self.shapes) -len(three_first_submsgs) - len(last_two_subsgs)
             submsgs = "\n".join(three_first_submsgs+\
-                                [f"...{len_others} other catalogs..."]+\
+                                [f"...{len_others} other shapes..."]+\
                                 last_two_subsgs)
 
         return msg+ "\n" +submsgs
