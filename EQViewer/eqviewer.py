@@ -1136,7 +1136,7 @@ class Station():
         self.data = self.data[mask]
         return self
 
-    def plot(self,fig=None):
+    def plot_map(self,fig=None):
         """
         Plot the stations
 
@@ -1350,7 +1350,7 @@ class MulStation():
         self.stations = stations
         return self
 
-    def plot(self,fig=None):
+    def plot_map(self,fig=None):
         """
         Plot the stations.
 
@@ -1367,7 +1367,7 @@ class MulStation():
                         frame=["afg","WNse"])
 
         for station in self.stations:
-            station.plot(fig=fig)
+            station.plot_map(fig=fig)
         return fig
 
 class Shape():
@@ -1518,7 +1518,7 @@ class Shape():
         """
         self.data.plot(**args)
 
-    def plot(self,fig=None):
+    def plot_map(self,fig=None):
         """
         Plot the stations
 
@@ -1699,7 +1699,7 @@ class MulShape():
         self.shapes = shapes
         return self
 
-    def plot(self,fig=None):
+    def plot_map(self,fig=None):
         """
         Plot the stations.
 
@@ -1716,7 +1716,7 @@ class MulShape():
                         frame=["afg","WNse"])
 
         for shape in self.shapes:
-            shape.plot(fig=fig)
+            shape.plot_map(fig=fig)
         return fig
 
 class FM():

@@ -23,6 +23,7 @@ import datetime as t
 import random
 
 # https://ncedc.org/egs/catalog-search.html
+# https://www.usgs.gov/programs/earthquake-hazards/faults faults
 df = pd.read_csv("/home/emmanuel/EQviewer/data/earthquakes/catalog.csv",
                 parse_dates=["origin_time"])
 baseplot1 = BasePlot(color = "gray",
@@ -46,10 +47,38 @@ well = Well(data,"PAD",
                         pen="1p,red"
                         )
                 )
-print(well.__str__(True))
+
+stations_path = "/home/emmanuel/EQviewer/data/stations/stations.csv"
+station = pd.read_csv(stations_path)
+station = Station(data = station,
+                    baseplot=BasePlot(color="green",
+                                label="stations",
+                                transparency = 0,
+                                style="i0.3c",
+                                pen="black"))
+
+myshp = "/home/emmanuel/EQviewer/data/shapes/faults/faults.shp"
+all_data = gpd.read_file(myshp)
+shape_r = Shape(data=all_data,
+        projection="EPSG:4326")
+myshp = "/home/emmanuel/EQviewer/data/shapes/polygon/pol.shp"
+all_data = gpd.read_file(myshp)
+shape= Shape(data=all_data,
+        projection="EPSG:4326",
+        baseplot=BasePlot(color=None, 
+                            pen=["0.02c,red"]
+                            ))
+# print(all_data)
+# exit()
+# print(station.__str__(True))
+# exit()
+
 # print(cat1)
 # print(cat1.__str__(True))
 fig = cat1.plot_map()
 fig = well.plot_map(fig=fig)
+fig = station.plot_map(fig=fig)
+fig = shape_r.plot_map(fig=fig)
+fig = shape.plot_map(fig=fig)
 fig.show()
 
