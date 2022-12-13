@@ -16,4 +16,5 @@ conda activate eqviewer
 
 # Examples
 
-For now, you can see some examples in the test folder. I am preparing some examples for you.
+We will be uploading examples.
+

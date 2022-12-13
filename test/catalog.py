@@ -68,6 +68,8 @@ shape= Shape(data=all_data,
         baseplot=BasePlot(color=None, 
                             pen=["0.02c,red"]
                             ))
+print(shape)
+print(shape.__str__(True))
 # print(all_data)
 # exit()
 # print(station.__str__(True))
@@ -75,10 +77,10 @@ shape= Shape(data=all_data,
 
 # print(cat1)
 # print(cat1.__str__(True))
-fig = cat1.plot_map()
-fig = well.plot_map(fig=fig)
-fig = station.plot_map(fig=fig)
-fig = shape_r.plot_map(fig=fig)
-fig = shape.plot_map(fig=fig)
-fig.show()
+# fig = cat1.plot_map()
+# fig = well.plot_map(fig=fig)
+# fig = station.plot_map(fig=fig)
+# fig = shape_r.plot_map(fig=fig)
+# fig = shape.plot_map(fig=fig)
+# fig.show()
 
