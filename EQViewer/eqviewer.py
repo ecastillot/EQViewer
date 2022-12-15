@@ -411,13 +411,30 @@ class Catalog():
         
         region = [lonw, lone, lats, latn]
         
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -842,13 +859,30 @@ class MulCatalog():
         lats = [ x for sublist in lats for x in sublist]
         region = [min(lons),max(lons),min(lats),max(lats)]
 
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -1020,13 +1054,30 @@ class Station():
         lonw,lone = self.data.longitude.min(),self.data.longitude.max()
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
         region = [lonw, lone, lats, latn]
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -1255,13 +1306,30 @@ class MulStation():
         lats = [ x for sublist in lats for x in sublist]
         region = [min(lons),max(lons),min(lats),max(lats)]
 
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -1426,13 +1494,30 @@ class Shape():
         
         region = [lonw, lone, lats, latn]
         
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -1610,13 +1695,30 @@ class MulShape():
         lats = [ x for sublist in lats for x in sublist]
         region = [min(lons),max(lons),min(lats),max(lats)]
 
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -1784,15 +1886,41 @@ class FM():
         lonw,lone = self.data.longitude.min(),self.data.longitude.max()
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
         
+        if "plot_longitude" in self.data.columns.tolist():
+            lonw = min(lonw,self.data.plot_longitude.min())
+            lone = max(lone,self.data.plot_longitude.max())
+        if "plot_latitude" in self.data.columns.tolist():
+            lats = min(lats,self.data.plot_latitude.min())
+            latn = max(latn,self.data.plot_latitude.max())
+
+
         region = [lonw, lone, lats, latn]
         
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -2208,13 +2336,30 @@ class MulFM():
         lats = [ x for sublist in lats for x in sublist]
         region = [min(lons),max(lons),min(lats),max(lats)]
 
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -2423,13 +2568,30 @@ class Well():
         
         region = [lonw, lone, lats, latn]
         
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
@@ -3053,13 +3215,30 @@ class MulWell():
         lats = [ x for sublist in lats for x in sublist]
         region = [min(lons),max(lons),min(lats),max(lats)]
 
+
         if isinstance(padding,list):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
+            
             if padding:
                 if len(padding) != 4:
                     raise Exception("Padding parameter must be 4D")
                 else:
+                    padding = [-padding[0],padding[1],-padding[2],padding[3]]
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
+            if region[0] == region[1]:
+                region[0] = region[0] - 0.001
+                region[1] = region[1] + 0.001
+            if region[2] == region[3]:
+                region[2] = region[2] - 0.001
+                region[3] = region[3] + 0.001
+            
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
             adding4lon = lon_distance*padding
