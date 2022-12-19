@@ -20,6 +20,8 @@ conda activate eqviewer
 
 I recommend it one step at a time. It will not take you so long.
 
+*As EQViewer uses [PyGMT](https://www.pygmt.org/latest/), it will take some minutes to install GMT in colab*
+
 
 | Examples | Notebook  |
 |---|---|
