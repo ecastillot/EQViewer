@@ -202,6 +202,8 @@ class BaseProfile():
             grid2 = region[2:]
             grid2 = round((grid2[1] -grid2[0])/5,2)
             grid = [grid1,grid2]
+        else:
+            grid = self.grid
 
         frame=[
                 f'xafg{grid[0]}+l"{x_label} ({self.output_unit})"', 
@@ -2846,6 +2848,10 @@ class Profile():
 
         return msg
 
+    def copy(self):
+        """Deep copy of the class"""
+        return copy.deepcopy(self)
+
     def _add_mulwell(self,mulwell,depth_unit,verbose=True):
         mulwell_name = mulwell.__class__.__name__
         projected_data = mulwell.project(startpoint=self.startpoint,
@@ -2949,7 +2955,7 @@ class Profile():
         elif mulcatalog_name == "MulFM":
             self._add_mulfm(mulobject,depth_unit,verbose)
 
-    def plot_in_map(self,fig,colorline="magenta",rescale=True):
+    def plot_in_map(self,fig,colorline="magenta",rescale=False):
         """
         add profiles in figure
         """
@@ -2999,7 +3005,6 @@ class Profile():
                 basemap_args["projection"] = "x?/-?"
                 
         fig.basemap(**basemap_args)
-
         mulobjects = self.mulobjects.items()
 
         n_showed_cpt = 0
@@ -3012,6 +3017,9 @@ class Profile():
                         continue
                     zmin = min(zmin)
                     zmax = max(zmax)
+                    if zmin == zmax:
+                        zmin = zmin-0.001
+                        zmax = zmax+0.001
                     cpt = CPT(color_target="measurement",
                                 label="measurement",
                                 cmap="cool",
@@ -3025,6 +3033,9 @@ class Profile():
                         continue
                     zmin = min(zmin)
                     zmax = max(zmax)
+                    if zmin == zmax:
+                        zmin = zmin-0.001
+                        zmax = zmax+0.001
                     cpt = CPT(color_target="depth",
                                 label="Depth",
                                 cmap="rainbow",
@@ -3040,7 +3051,6 @@ class Profile():
                     continue
                 if mulobject_name == "MulFM":
                     info2pygmt = info["baseplots"][i].get_info2pygmt()
-
                     pygmt.makecpt(**cpt.makecpt_kwargs)
                     data = data.rename(columns={"distance":"longitude",
                                                 "depth":"latitude"})
@@ -3100,7 +3110,6 @@ class Profile():
                         with pygmt.config(FORMAT_FLOAT_MAP="%.1e"):
                             fig.colorbar(frame=["af",f'y+l{cpt.label}'],
                                         position='JMR+o1c/0c+e')
-
 
         return fig
 
@@ -3417,7 +3426,7 @@ class MulProfile():
         for profile in self.profiles:
             profile.add_mulobject(mulobject,depth_unit,verbose)
 
-    def plot_in_map(self,fig,colorline="magenta",rescale=True):
+    def plot_in_map(self,fig,colorline="magenta",rescale=False):
         """
         add profiles in figure
         """
@@ -3460,17 +3469,16 @@ class MulProfile():
             subplot =   fig.subplot(
                         nrows=nrows, ncols=ncols, 
                         subsize=subsize, 
-                        figsize=None,
+                        figsize=figsize,
                         frame=frame,
                         margins=margins
                         ) 
         with subplot:
             for f,profile in enumerate(self.profiles):
                 print(f+1,"->",profile.name)
-
                 with fig.set_panel(panel=f):
-                    profile.plot(fig=fig)
-
+                    x = profile.plot(fig=fig)
+                    x.legend(transparency=100) #only to remove the error caused by subplot legend
         return fig
 
 if __name__ == "__main__":
