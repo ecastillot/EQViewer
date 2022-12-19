@@ -3444,7 +3444,7 @@ class MulProfile():
         """
 
         if (nrows != None) and (ncols!=None):
-            if nrows+ncols != len(self.profiles):
+            if nrows*ncols < len(self.profiles):
                 raise Exception(f"nrows + ncols must be equal to {len(self.profiles)}")
         elif (nrows != None) or (ncols!=None):
             if nrows:
