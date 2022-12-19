@@ -23,11 +23,11 @@ I recommend it one step at a time. It will not take you so long.
 
 | Examples |  |
 |---|---|
-| 1_shape| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/tree/master/examples/1_shape.ipynb) |
-| 2_stations| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/tree/master/examples/2_stations.ipynb) |
-| 3_catalog| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/tree/master/examples/3_catalog.ipynb) |
-| 4_well| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/tree/master/examples/4_well.ipynb) |
-| 5_fm| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/tree/master/examples/5_fm.ipynb) |
-| 6_profile| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/tree/master/examples/6_profile.ipynb) |
-| 7_viewer| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/tree/master/examples/7_viewer.ipynb) |
+| 1_shape| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/1_shape.ipynb) |
+| 2_stations| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/2_stations.ipynb) |
+| 3_catalog| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/3_catalog.ipynb) |
+| 4_well| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/4_well.ipynb) |
+| 5_fm| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/5_fm.ipynb) |
+| 6_profile| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/6_profile.ipynb) |
+| 7_viewer| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/7_viewer.ipynb) |
 
