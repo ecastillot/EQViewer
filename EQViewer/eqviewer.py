@@ -509,7 +509,12 @@ class Catalog():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
         
         info2pygmt = self.baseplot.get_info2pygmt(data)
         if self.baseplot.cmap:
@@ -909,7 +914,12 @@ class MulCatalog():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
         if self.cpt == None:
             data = []
             for catalog in self.catalogs:
@@ -1204,7 +1214,12 @@ class Station():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
         
         plot_info2pygmt = self.baseplot.get_info2pygmt()
         fig.plot(
@@ -1434,7 +1449,12 @@ class MulStation():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
 
         for station in self.stations:
             station.plot_map(fig=fig)
@@ -1619,7 +1639,12 @@ class Shape():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
         
         info2pygmt = self.baseplot.get_info2pygmt()
         fig.plot(self.data,**info2pygmt)
@@ -1817,7 +1842,12 @@ class MulShape():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
 
         for shape in self.shapes:
             shape.plot_map(fig=fig)
@@ -2099,7 +2129,12 @@ class FM():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
         
         info2pygmt = self.basemeca.get_info2pygmt()
         
@@ -2386,7 +2421,12 @@ class MulFM():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
         if self.cpt == None:
             data = []
             for fm in self.fms:
@@ -2726,7 +2766,12 @@ class Well():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
         
         survey_info2pygmt = self.baseplot.get_info2pygmt(data)
         if self.baseplot.cmap:
@@ -3272,7 +3317,12 @@ class MulWell():
             fig = pygmt.Figure() 
             fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
-                        frame=["afg","WNse"])
+                        frame=["af","WNse"])
+            fig.coast(
+                    shorelines=True,
+                    borders='1/1p,black',
+                    frame=["afg","WNse"],
+                    )
 
         if self.survey_cpt == None:
             data = []
