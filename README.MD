@@ -21,7 +21,7 @@ conda activate eqviewer
 I recommend it one step at a time. It will not take you so long.
 
 
-| Examples |  |
+| Examples | Notebook  |
 |---|---|
 | 1_shape| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/1_shape.ipynb) |
 | 2_stations| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ecastillot/EQViewer/blob/master/examples/2_stations.ipynb) |
