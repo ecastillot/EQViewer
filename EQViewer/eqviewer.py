@@ -443,7 +443,7 @@ class Catalog():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def project(self,startpoint,endpoint,
@@ -507,8 +507,7 @@ class Catalog():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -897,7 +896,7 @@ class MulCatalog():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def plot_map(self,fig=None):
@@ -913,8 +912,7 @@ class MulCatalog():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1098,7 +1096,7 @@ class Station():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def __len__(self):
@@ -1214,8 +1212,7 @@ class Station():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1356,7 +1353,7 @@ class MulStation():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
     
     def append(self, stations):
@@ -1450,8 +1447,7 @@ class MulStation():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1550,7 +1546,7 @@ class Shape():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def to_crs(self,projection):
@@ -1641,8 +1637,7 @@ class Shape():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1757,7 +1752,7 @@ class MulShape():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def append(self, shapes):
@@ -1845,8 +1840,7 @@ class MulShape():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1965,7 +1959,7 @@ class FM():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def __str__(self,extended=False) -> str:
@@ -2133,8 +2127,7 @@ class FM():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -2410,7 +2403,7 @@ class MulFM():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def plot_map(self,fig=None):
@@ -2426,8 +2419,7 @@ class MulFM():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -2648,7 +2640,7 @@ class Well():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def sort_values(self,**args):
@@ -2772,8 +2764,7 @@ class Well():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -3308,7 +3299,7 @@ class MulWell():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-
+        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
         return region
 
     def plot_map(self,fig=None,with_injection=True):
@@ -3324,8 +3315,7 @@ class MulWell():
 
         if fig == None:
             fig = pygmt.Figure() 
-            region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
-            fig.basemap(region=region,
+            fig.basemap(region=self.region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
