@@ -2,11 +2,15 @@ import numpy as np
 import pandas as pd
 import os
 import glob
+import math
 import geopandas as gpd
 import numpy as np
 import matplotlib.pyplot as plt
 import string
 from obspy.geodetics.base import gps2dist_azimuth
+
+def truncate(f, n):
+    return math.floor(f * 10 ** n) / 10 ** n
 
 def inside_the_polygon(p,pol_points):
     """
