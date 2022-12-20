@@ -507,7 +507,7 @@ class Catalog():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -912,7 +912,7 @@ class MulCatalog():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1212,7 +1212,7 @@ class Station():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1447,7 +1447,7 @@ class MulStation():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1637,7 +1637,7 @@ class Shape():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -1840,7 +1840,7 @@ class MulShape():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -2127,7 +2127,7 @@ class FM():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -2419,7 +2419,7 @@ class MulFM():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -2764,7 +2764,7 @@ class Well():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
@@ -3315,7 +3315,7 @@ class MulWell():
 
         if fig == None:
             fig = pygmt.Figure() 
-            fig.basemap(region=self.region(padding=0.1),
+            fig.basemap(region=self.get_region(padding=0.1),
                         projection="M12c", 
                         frame=["af","WNse"])
             fig.coast(
