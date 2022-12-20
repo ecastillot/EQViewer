@@ -412,15 +412,16 @@ class Catalog():
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
         
         region = [lonw, lone, lats, latn]
+        region = list(map(lambda x:round(x,2),region))
         
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -431,11 +432,11 @@ class Catalog():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -443,7 +444,6 @@ class Catalog():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def project(self,startpoint,endpoint,
@@ -869,11 +869,11 @@ class MulCatalog():
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -884,11 +884,11 @@ class MulCatalog():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -896,7 +896,6 @@ class MulCatalog():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def plot_map(self,fig=None):
@@ -1066,14 +1065,15 @@ class Station():
         lonw,lone = self.data.longitude.min(),self.data.longitude.max()
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
         region = [lonw, lone, lats, latn]
+        region = list(map(lambda x:round(x,2),region))
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -1084,11 +1084,11 @@ class Station():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -1096,7 +1096,6 @@ class Station():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def __len__(self):
@@ -1326,11 +1325,11 @@ class MulStation():
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -1341,11 +1340,11 @@ class MulStation():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -1353,7 +1352,6 @@ class MulStation():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
     
     def append(self, stations):
@@ -1515,15 +1513,16 @@ class Shape():
         lats,latn = data.min_y.min(),data.max_y.max()
         
         region = [lonw, lone, lats, latn]
+        region = list(map(lambda x:round(x,2),region))
         
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -1534,11 +1533,11 @@ class Shape():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -1546,7 +1545,6 @@ class Shape():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def to_crs(self,projection):
@@ -1725,11 +1723,11 @@ class MulShape():
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -1740,11 +1738,11 @@ class MulShape():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -1752,7 +1750,6 @@ class MulShape():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def append(self, shapes):
@@ -1927,15 +1924,16 @@ class FM():
 
 
         region = [lonw, lone, lats, latn]
+        region = list(map(lambda x:round(x,2),region))
         
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -1946,11 +1944,11 @@ class FM():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
 
             lon_distance = abs(region[1]-region[0])
@@ -1959,7 +1957,6 @@ class FM():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def __str__(self,extended=False) -> str:
@@ -2376,11 +2373,11 @@ class MulFM():
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -2391,11 +2388,11 @@ class MulFM():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -2403,7 +2400,6 @@ class MulFM():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def plot_map(self,fig=None):
@@ -2609,15 +2605,15 @@ class Well():
         lats,latn = self.data.latitude.min(),self.data.latitude.max()
         
         region = [lonw, lone, lats, latn]
+        region = list(map(lambda x:round(x,2),region))
         
-
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -2628,11 +2624,11 @@ class Well():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -2640,7 +2636,6 @@ class Well():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def sort_values(self,**args):
@@ -3063,8 +3058,8 @@ class Profile():
                     zmin = min(zmin)
                     zmax = max(zmax)
                     if zmin == zmax:
-                        zmin = zmin-0.001
-                        zmax = zmax+0.001
+                        zmin = zmin-0.01
+                        zmax = zmax+0.01
                     cpt = CPT(color_target="measurement",
                                 label="measurement",
                                 cmap="cool",
@@ -3079,8 +3074,8 @@ class Profile():
                     zmin = min(zmin)
                     zmax = max(zmax)
                     if zmin == zmax:
-                        zmin = zmin-0.001
-                        zmax = zmax+0.001
+                        zmin = zmin-0.01
+                        zmax = zmax+0.01
                     cpt = CPT(color_target="depth",
                                 label="Depth",
                                 cmap="rainbow",
@@ -3272,11 +3267,11 @@ class MulWell():
 
         if isinstance(padding,list):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             
             if padding:
@@ -3287,11 +3282,11 @@ class MulWell():
                     region = list( map(add, region, padding) )
         elif isinstance(padding,float) or isinstance(padding,int):
             if region[0] == region[1]:
-                region[0] = region[0] - 0.001
-                region[1] = region[1] + 0.001
+                region[0] = region[0] - 0.01
+                region[1] = region[1] + 0.01
             if region[2] == region[3]:
-                region[2] = region[2] - 0.001
-                region[3] = region[3] + 0.001
+                region[2] = region[2] - 0.01
+                region[3] = region[3] + 0.01
             
             lon_distance = abs(region[1]-region[0])
             lat_distance = abs(region[3]-region[2])
@@ -3299,7 +3294,6 @@ class MulWell():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),region))
         return region
 
     def plot_map(self,fig=None,with_injection=True):
