@@ -443,7 +443,7 @@ class Catalog():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def project(self,startpoint,endpoint,
@@ -896,7 +896,7 @@ class MulCatalog():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def plot_map(self,fig=None):
@@ -1096,7 +1096,7 @@ class Station():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def __len__(self):
@@ -1353,7 +1353,7 @@ class MulStation():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
     
     def append(self, stations):
@@ -1546,7 +1546,7 @@ class Shape():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def to_crs(self,projection):
@@ -1752,7 +1752,7 @@ class MulShape():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def append(self, shapes):
@@ -1959,7 +1959,7 @@ class FM():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def __str__(self,extended=False) -> str:
@@ -2403,7 +2403,7 @@ class MulFM():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def plot_map(self,fig=None):
@@ -2640,7 +2640,7 @@ class Well():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def sort_values(self,**args):
@@ -3299,7 +3299,7 @@ class MulWell():
             adding4lat = lat_distance*padding
             padding = [-adding4lon, adding4lon, -adding4lat, adding4lat]
             region = list( map(add, region, padding) )
-        region = list(map(lambda x:round(x,2),self.get_region(padding=0.1)))
+        region = list(map(lambda x:round(x,2),region))
         return region
 
     def plot_map(self,fig=None,with_injection=True):
