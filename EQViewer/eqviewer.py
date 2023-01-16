@@ -2904,12 +2904,19 @@ class Profile():
         injections = []
         survey_baseplots = [ ]
         inj_baseplots = [ ]
-        for n_well,(trajectory,injection_segments) in enumerate(projected_data):
+        for n_well,survey_data in enumerate(projected_data):
+            if survey_data.empty:
+                continue
+
+            if isinstance(survey_data,pd.DataFrame):
+                trajectory,injection_segments = survey_data, []
+            elif isinstance(survey_data,tuple):
+                trajectory,injection_segments = survey_data
+            else:
+                raise Exception("Error with projected data in mullwell.project")
+
             well = mulwell[n_well]
             inj = well.injection
-
-            if trajectory.empty:
-                continue
 
             if depth_unit == "m":
                 trajectory["depth"] = trajectory["depth"]/1e3
@@ -3522,6 +3529,12 @@ class MulProfile():
                 print(f+1,"->",profile.name)
                 with fig.set_panel(panel=f):
                     x = profile.plot(fig=fig)
+                    x.text(
+                            position="BR",
+                            text=f"{profile.name[0]}-{profile.name[1]}",
+                            font="13p,Helvetica-Bold,red",
+                        )
+                    x.plot(x=0,y=0,pen=None,transparency=100,label=".") #only to remove the error caused by subplot legend
                     x.legend(transparency=100) #only to remove the error caused by subplot legend
         return fig
 
