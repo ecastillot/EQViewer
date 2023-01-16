@@ -3532,8 +3532,9 @@ class MulProfile():
                         margins=margins
                         ) 
         with subplot:
-            for f,profile in enumerate(self.profiles):
+            for f,_profile in enumerate(self.profiles):
                 print(f+1,"->",profile.name)
+                profile = _profile.copy()
                 with fig.set_panel(panel=f):
                     x = profile.plot(fig=fig)
                     x.text(
