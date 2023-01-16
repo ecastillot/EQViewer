@@ -3533,7 +3533,7 @@ class MulProfile():
                         ) 
         with subplot:
             for f,_profile in enumerate(self.profiles):
-                print(f+1,"->",profile.name)
+                print(f+1,"->",_profile.name)
                 profile = _profile.copy()
                 with fig.set_panel(panel=f):
                     x = profile.plot(fig=fig)
