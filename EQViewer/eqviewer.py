@@ -3343,8 +3343,9 @@ class MulWell():
         if self.injection_cpt == None:
             data = []
             for well in self.wells:
-                if well.injection.baseplot.cmap:
-                    data.append(well.injection.data)
+                if well.injection != None:
+                    if well.injection.baseplot.cmap:
+                        data.append(well.injection.data)
             if data:
                 data = pd.concat(data)
                 zmin = data.measurement.min()
@@ -3360,30 +3361,36 @@ class MulWell():
         show_injection_cpt = []
         for well in self.wells:
             if well.baseplot.cmap:
-                if well.injection.baseplot.cmap:
-                    well.plot_map(fig=fig,survey_cpt=self.survey_cpt,show_survey_cpt=False,
-                                with_injection=with_injection,injection_cpt=self.injection_cpt,
-                                show_injection_cpt=False)
-                    _show_injection_cpt = True
+                if well.injection != None:
+                    if well.injection.baseplot.cmap:
+                        well.plot_map(fig=fig,survey_cpt=self.survey_cpt,show_survey_cpt=False,
+                                    with_injection=with_injection,injection_cpt=self.injection_cpt,
+                                    show_injection_cpt=False)
+                        _show_injection_cpt = True
+                    else:
+                        well.plot_map(fig=fig,survey_cpt=self.survey_cpt,show_survey_cpt=False,
+                                    with_injection=with_injection,injection_cpt=None,
+                                    show_injection_cpt=False)
+                        _show_injection_cpt = False
                 else:
-                    well.plot_map(fig=fig,survey_cpt=self.survey_cpt,show_survey_cpt=False,
-                                with_injection=with_injection,injection_cpt=None,
-                                show_injection_cpt=False)
                     _show_injection_cpt = False
+
                 _show_survey_cpt = True
             else:
                 well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
                             with_injection=with_injection)
-                
-                if well.injection.baseplot.cmap:
-                    well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
-                                with_injection=with_injection,injection_cpt=self.injection_cpt,
-                                show_injection_cpt=False)
-                    _show_injection_cpt = True
+                if well.injection != None:
+                    if well.injection.baseplot.cmap:
+                        well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
+                                    with_injection=with_injection,injection_cpt=self.injection_cpt,
+                                    show_injection_cpt=False)
+                        _show_injection_cpt = True
+                    else:
+                        well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
+                                    with_injection=with_injection,injection_cpt=None,
+                                    show_injection_cpt=False)
+                        _show_injection_cpt = False
                 else:
-                    well.plot_map(fig=fig,survey_cpt=None,show_survey_cpt=False,
-                                with_injection=with_injection,injection_cpt=None,
-                                show_injection_cpt=False)
                     _show_injection_cpt = False
 
                 _show_survey_cpt = False
