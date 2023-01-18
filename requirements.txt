@@ -1,0 +1,5 @@
+pygmt == 0.7.0
+geopandas == 0.12.1
+openpyxl == 3.0.10
+obspy >= 1.3
+ipykernel ~= 5.3.4

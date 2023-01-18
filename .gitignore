@@ -2,4 +2,7 @@ test1/
 example2/
 _data/
 _test/
+build/
+dist/
+EQViewer.egg-info/
 */__pycache__/
