@@ -10,8 +10,9 @@
 
 ## conda
 ```bash
-conda create --name eqviewer --channel=conda-forge pygmt geopandas openpyxl obspy ipykernel python=3.10
+conda create --name eqviewer --channel=conda-forge pygmt python=3.10
 conda activate eqviewer
+pip install EQViewer
 ```
 
 
@@ -21,7 +22,7 @@ conda activate eqviewer
 I recommend it one step at a time. It will not take you so long.
 
 ## **WARNING!**
-*As EQViewer uses [PyGMT](https://www.pygmt.org/latest/), it will take some minutes to install GMT in colab. **In addition, sometimes there is a bug with the size of the output figure (this only happens in colab). I am looking for a solution***
+*As EQViewer uses [PyGMT](https://www.pygmt.org/latest/), it will take some minutes to install GMT in colab. 
 
 
 | Examples | Notebook  |
